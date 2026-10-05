@@ -15,6 +15,10 @@
     Trigger Promise Error
   </button>
 
+  <button onclick="triggerApiError()">
+    Trigger API Error
+  </button>
+
   <script src="./index.js"></script>
 
   <script>
@@ -29,6 +33,13 @@
 
     function triggerPromiseError() {
       Promise.reject(new Error("SiteWatch test promise error"));
+    }
+
+    function triggerApiError() {
+      fetch("http://localhost:5000/api/does-not-exist")
+        .catch(() => {
+          // The SiteWatch SDK already records the failed request.
+        });
     }
   </script>
 
