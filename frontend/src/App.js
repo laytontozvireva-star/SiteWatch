@@ -59,14 +59,9 @@ function App() {
           margin: "0 auto",
         }}
       >
-        <h1
-          style={{
-            fontSize: "36px",
-            marginBottom: "8px",
-          }}
-        >
-          SiteWatch
-        </h1>
+        <h1 className="text-4xl font-bold text-blue-600">
+  SiteWatch
+</h1>
 
         <p
           style={{
