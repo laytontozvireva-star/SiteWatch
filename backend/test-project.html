@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SiteWatch API Test</title>
+</head>
+<body>
+  <h1>SiteWatch Project API Test</h1>
+
+  <button onclick="createProject()">Create Test Project</button>
+
+  <pre id="result">Click the button...</pre>
+
+  <script>
+    async function createProject() {
+      const result = document.getElementById("result");
+
+      try {
+        const response = await fetch("http://localhost:5000/api/projects", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            name: "Test Website",
+            website_url: "https://example.com"
+          })
+        });
+
+        const data = await response.json();
+
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        result.textContent = error.message;
+      }
+    }
+  </script>
+</body>
+</html>
