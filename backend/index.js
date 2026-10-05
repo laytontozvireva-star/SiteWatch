@@ -92,6 +92,86 @@ app.post("/api/projects", async (req, res) => {
   }
 });
 
+app.post("/api/errors", async (req, res) => {
+  try {
+    const apiKey = req.headers["x-sitewatch-key"];
+
+    if (!apiKey) {
+      return res.status(401).json({
+        success: false,
+        message: "SiteWatch API key is required",
+      });
+    }
+
+    const {
+      type,
+      message,
+      url,
+      page,
+      stack,
+      browser,
+      user_agent,
+    } = req.body;
+
+    if (!type || !message) {
+      return res.status(400).json({
+        success: false,
+        message: "Error type and message are required",
+      });
+    }
+
+    const { data: project, error: projectError } = await supabase
+      .from("projects")
+      .select("id")
+      .eq("api_key", apiKey)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid SiteWatch API key",
+      });
+    }
+
+    const { data: savedError, error: saveError } = await supabase
+      .from("errors")
+      .insert([
+        {
+          project_id: project.id,
+          type,
+          message,
+          url,
+          page,
+          stack,
+          browser,
+          user_agent,
+        },
+      ])
+      .select()
+      .single();
+
+    if (saveError) {
+      return res.status(500).json({
+        success: false,
+        message: "Could not save error",
+        error: saveError.message,
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Error recorded successfully",
+      error: savedError,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`SiteWatch API running on http://localhost:${PORT}`);
 });

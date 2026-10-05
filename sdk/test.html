@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SiteWatch SDK Test</title>
+</head>
+<body>
+
+  <h1>SiteWatch SDK Test</h1>
+
+  <button onclick="triggerError()">
+    Trigger JavaScript Error
+  </button>
+
+  <button onclick="triggerPromiseError()">
+    Trigger Promise Error
+  </button>
+
+  <script src="./index.js"></script>
+
+  <script>
+    SiteWatch.init({
+      apiKey: "sw_3fe83516-e68b-43c8-b1c4-e050280e79ff",
+      endpoint: "http://localhost:5000/api/errors"
+    });
+
+    function triggerError() {
+      throw new Error("SiteWatch test JavaScript error");
+    }
+
+    function triggerPromiseError() {
+      Promise.reject(new Error("SiteWatch test promise error"));
+    }
+  </script>
+
+</body>
+</html>
