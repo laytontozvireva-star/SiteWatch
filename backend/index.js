@@ -172,6 +172,7 @@ app.post("/api/errors", async (req, res) => {
   }
 });
 
+
 app.listen(PORT, () => {
   console.log(`SiteWatch API running on http://localhost:${PORT}`);
 });
