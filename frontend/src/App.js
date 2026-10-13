@@ -10,7 +10,14 @@ import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import { supabase } from "./supabaseClient";
 
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_BASE = (() => {
+  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+  if (process.env.BACKEND_URL) return `${process.env.BACKEND_URL.replace(/\/$/, "")}/api`;
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+    return "/api";
+  }
+  return "http://localhost:5000/api";
+})();
 const API_KEY = "sw_3fe83516-e68b-43c8-b1c4-e050280e79ff";
 
 const EMPTY_ANALYTICS = {

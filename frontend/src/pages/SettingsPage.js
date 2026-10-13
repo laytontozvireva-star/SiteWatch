@@ -82,7 +82,11 @@ export default function SettingsPage({ session, onNavigate, onSignOut }) {
               <input
                 type="text"
                 readOnly
-                value={process.env.REACT_APP_API_URL || "http://localhost:5000/api"}
+                value={
+                  process.env.REACT_APP_API_URL ||
+                  (process.env.BACKEND_URL ? `${process.env.BACKEND_URL.replace(/\/$/, "")}/api` : null) ||
+                  (typeof window !== "undefined" && window.location.hostname !== "localhost" ? `${window.location.origin}/api` : "http://localhost:5000/api")
+                }
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 font-mono text-xs text-gray-700 outline-none"
               />
             </div>

@@ -11,7 +11,14 @@ import {
 import AddWebsite from "../AddWebsite";
 import { supabase } from "../supabaseClient";
 
-const API_BASE = process.env.REACT_APP_API_URL || "http://localhost:5000/api";
+const API_BASE = (() => {
+  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
+  if (process.env.BACKEND_URL) return `${process.env.BACKEND_URL.replace(/\/$/, "")}/api`;
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+    return "/api";
+  }
+  return "http://localhost:5000/api";
+})();
 
 const TYPE_BADGES = {
   javascript: {
@@ -192,7 +199,14 @@ export default function SitesPage({
     }
   };
 
-  const backendBase = (process.env.REACT_APP_API_URL || "http://localhost:5000/api").replace(/\/api\/?$/, "");
+  const backendBase = (() => {
+    if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL.replace(/\/api\/?$/, "");
+    if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/$/, "");
+    if (typeof window !== "undefined" && window.location.origin && window.location.hostname !== "localhost") {
+      return window.location.origin;
+    }
+    return "http://localhost:5000";
+  })();
   const sdkSnippet = `<script
   src="${backendBase}/sdk/sitewatch.js"
   data-site-key="${current.api_key || "sw_your_key_here"}">
