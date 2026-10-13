@@ -1,0 +1,42 @@
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
+
+const requiredEnvVars = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
+const missingVars = requiredEnvVars.filter((key) => !process.env[key]);
+
+if (missingVars.length > 0) {
+  console.warn(
+    `[SiteWatch Warning] Missing environment variable(s): ${missingVars.join(", ")}. Supabase queries will fail until provided.`
+  );
+}
+
+const config = {
+  env: process.env.NODE_ENV || "development",
+  isProduction: process.env.NODE_ENV === "production",
+  port: parseInt(process.env.PORT, 10) || 5000,
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  },
+  rateLimits: {
+    globalWindowMs: 60 * 1000,
+    globalMax: 600, // 600 requests per minute
+    ingestionWindowMs: 60 * 1000,
+    ingestionMax: 180, // 180 error reports per minute per key/IP
+    createProjectMax: 20, // 20 new projects per 15 mins per user
+  },
+  cache: {
+    projectTtlMs: 60 * 1000, // Cache validated project API keys for 60 seconds
+    alertDebounceMs: 15 * 60 * 1000, // Debounce duplicate unread alerts for 15 minutes
+  },
+  payload: {
+    maxJsonSize: "50kb",
+    maxMessageLen: 2000,
+    maxUrlLen: 2048,
+    maxPageLen: 500,
+    maxStackLen: 10000,
+    maxBrowserLen: 500,
+  },
+};
+
+module.exports = config;
