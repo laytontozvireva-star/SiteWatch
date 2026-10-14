@@ -143,8 +143,16 @@ function App() {
       );
 
       if (failedIndex !== -1) {
+        const failed = responses[failedIndex];
+        let detail = "";
+        try {
+          const errData = await failed.clone().json();
+          detail = errData.message ? ` - ${errData.message}` : "";
+        } catch {
+          detail = failed.statusText ? ` - ${failed.statusText}` : "";
+        }
         throw new Error(
-          `Could not load ${labels[failedIndex]}. Check your backend and API access.`
+          `Could not load ${labels[failedIndex]} (HTTP ${failed.status}${detail}). Check your backend and API access.`
         );
       }
 

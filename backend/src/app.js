@@ -85,11 +85,16 @@ app.use("/api", healthRoutes);
 // 7. SDK distribution endpoint (/sdk/sitewatch.js)
 app.use("/sdk", sdkRoutes);
 
-// 8. Core API routes
+// 8. Core API routes (mounted on both /api and root for maximum serverless gateway compatibility)
 app.use("/api", projectsRoutes);
 app.use("/api", errorsRoutes);
 app.use("/api", analyticsRoutes);
 app.use("/api", alertsRoutes);
+
+app.use(projectsRoutes);
+app.use(errorsRoutes);
+app.use(analyticsRoutes);
+app.use(alertsRoutes);
 
 // 9. 404 handler for unmatched routes
 app.use(handleNotFound);

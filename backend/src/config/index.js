@@ -15,8 +15,11 @@ const config = {
   isProduction: process.env.NODE_ENV === "production",
   port: parseInt(process.env.PORT, 10) || 5000,
   supabase: {
-    url: process.env.SUPABASE_URL,
-    serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    url:
+      process.env.SUPABASE_URL || "https://ojmncwucrwlcztbemhoo.supabase.co",
+    serviceRoleKey:
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qbW5jd3VjcndsY3p0YmVtaG9vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTE5MjUzNiwiZXhwIjoyMTA2NzY4NTM2fQ.rVrqo4p5M-ulRxiO82w2u6-IIOXV7ZP38NO3JZdFQV0",
   },
   rateLimits: {
     globalWindowMs: 60 * 1000,
