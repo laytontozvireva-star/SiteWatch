@@ -59,8 +59,8 @@ export default function AppLayout({
 
             <div className="px-3 mb-4">
               <ProjectSwitcher
-                projects={projects && projects.length > 0 ? projects : [activeProject || { name: "Gospel tube" }]}
-                activeProject={activeProject || (projects && projects[0]) || { name: "Gospel tube" }}
+                projects={projects}
+                activeProject={activeProject}
                 onSelectProject={(project) => {
                   if (onSelectProject) onSelectProject(project);
                   setMobileOpen(false);

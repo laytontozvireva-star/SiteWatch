@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Plus,
   Play,
@@ -9,7 +9,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import AddWebsite from "../AddWebsite";
-import { supabase } from "../supabaseClient";
 
 const API_BASE = (() => {
   if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
@@ -54,15 +53,13 @@ function formatRelativeTime(value) {
 
 export default function SitesPage({
   errors = [],
-  session,
   projects: propProjects = [],
   activeProject,
   setActiveProject,
   onProjectCreated,
   onRefresh,
 }) {
-  const [localProjects, setLocalProjects] = useState([]);
-  const projects = propProjects.length > 0 ? propProjects : localProjects;
+  const projects = propProjects;
   const [showAddForm, setShowAddForm] = useState(false);
   const [runningCheck, setRunningCheck] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
@@ -71,48 +68,8 @@ export default function SitesPage({
   const [checkResult, setCheckResult] = useState(null);
   const [range, setRange] = useState("30d");
 
-  // Fetch all registered projects
-  const fetchProjects = useCallback(async () => {
-    try {
-      const { data: currentSession } = await supabase.auth.getSession();
-      const token = currentSession?.session?.access_token;
-
-      if (!token) return;
-
-      const res = await fetch(`${API_BASE}/projects`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const list = Array.isArray(data.projects) ? data.projects : [];
-        setLocalProjects(list);
-        if (list.length > 0 && !activeProject) {
-          setActiveProject(list[0]);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load projects:", err);
-    }
-  }, [activeProject, setActiveProject]);
-
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects, session]);
-
-  // Fallback project representation if no backend projects exist yet
   const current = useMemo(() => {
-    return (
-      activeProject ||
-      projects[0] || {
-        name: "Gospel tube",
-        website_url:
-          "https://gospel-tube-app-git-master-laytontozvireva-stars-projects.vercel.app/",
-        api_key: "sw_46c71c87-c5a9-4a16-891d-6c169ca5789d",
-      }
-    );
+    return activeProject || projects[0] || null;
   }, [activeProject, projects]);
 
   const domain = useMemo(() => {
@@ -126,11 +83,41 @@ export default function SitesPage({
 
   // Errors for this specific project
   const siteErrors = useMemo(() => {
+    if (!current) return [];
     return errors.filter((e) => {
       if (current.website_url && e.url && e.url.includes(domain)) return true;
       return true; // Show errors logged under this project key
     });
   }, [errors, current, domain]);
+
+  if (!current) {
+    return (
+      <div className="px-6 py-8 lg:px-10 max-w-7xl">
+        <div className="mb-6">
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Sites</h1>
+          <p className="mt-1 text-sm text-gray-500">Register a site to start monitoring it.</p>
+        </div>
+        {showAddForm ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <AddWebsite
+              onProjectCreated={(newProject) => {
+                onProjectCreated?.(newProject);
+                setActiveProject(newProject);
+                setShowAddForm(false);
+              }}
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#2d6a4f] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#245740]"
+          >
+            <Plus className="w-4 h-4" /> Register a site
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // Run ping / check
   const handleRunCheck = async () => {
@@ -304,7 +291,6 @@ export default function SitesPage({
           <AddWebsite
             onProjectCreated={(newProject) => {
               if (onProjectCreated) onProjectCreated(newProject);
-              setLocalProjects((prev) => [newProject, ...prev]);
               setActiveProject(newProject);
               setShowAddForm(false);
             }}

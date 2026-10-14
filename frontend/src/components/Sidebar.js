@@ -36,8 +36,8 @@ export default function Sidebar({
         {/* Project Switcher (Supabase / GitHub Style) */}
         <div className="px-3 mb-5">
           <ProjectSwitcher
-            projects={projects && projects.length > 0 ? projects : [activeProject || { name: "Gospel tube" }]}
-            activeProject={activeProject || (projects && projects[0]) || { name: "Gospel tube" }}
+            projects={projects}
+            activeProject={activeProject}
             onSelectProject={onSelectProject}
             onNavigate={onNavigate}
           />

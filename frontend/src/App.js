@@ -18,14 +18,6 @@ const API_BASE = (() => {
   }
   return "http://localhost:5000/api";
 })();
-const DEFAULT_SITE = {
-  id: "default-gospel-tube",
-  name: "Gospel tube",
-  website_url:
-    "https://gospel-tube-app-git-master-laytontozvireva-stars-projects.vercel.app/",
-  api_key: "sw_46c71c87-c5a9-4a16-891d-6c169ca5789d",
-};
-
 const API_KEY = "sw_3fe83516-e68b-43c8-b1c4-e050280e79ff";
 
 const EMPTY_ANALYTICS = {
@@ -53,8 +45,8 @@ function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [readingAlerts, setReadingAlerts] = useState([]);
   const [session, setSession] = useState(null);
-  const [projects, setProjects] = useState([DEFAULT_SITE]);
-  const [activeProject, setActiveProject] = useState(DEFAULT_SITE);
+  const [projects, setProjects] = useState([]);
+  const [activeProject, setActiveProject] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
@@ -72,8 +64,13 @@ function App() {
 
   // Fetch projects belonging to the logged-in user and auto-select active one
   useEffect(() => {
-    if (!session?.access_token) return;
+    if (!session?.access_token) {
+      setProjects([]);
+      setActiveProject(null);
+      return;
+    }
 
+    let cancelled = false;
     fetch(`${API_BASE}/projects`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
@@ -81,15 +78,16 @@ function App() {
     })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.projects?.length > 0) {
-          setProjects(data.projects);
-          const savedId = localStorage.getItem("sitewatch_active_project_id");
-          const found = data.projects.find((p) => p.id === savedId);
-          const initial = found || data.projects[0];
-          setActiveProject(initial);
-        }
+        if (cancelled || !Array.isArray(data?.projects)) return;
+        const nextProjects = data.projects;
+        setProjects(nextProjects);
+        const savedId = localStorage.getItem("sitewatch_active_project_id");
+        const initial = nextProjects.find((p) => p.id === savedId) || nextProjects[0] || null;
+        setActiveProject(initial);
+        if (!initial) localStorage.removeItem("sitewatch_active_project_id");
       })
       .catch((err) => console.error("Could not fetch user projects", err));
+    return () => { cancelled = true; };
   }, [session]);
 
   const handleSelectProject = (project) => {
@@ -107,8 +105,8 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
-    setProjects([DEFAULT_SITE]);
-    setActiveProject(DEFAULT_SITE);
+    setProjects([]);
+    setActiveProject(null);
     localStorage.removeItem("sitewatch_active_project_id");
   };
 
