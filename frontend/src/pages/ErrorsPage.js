@@ -25,7 +25,7 @@ function getStackFrames(stack) {
     source = source.replace(/^\.\//, "").replace(/^\/?(?:\*\/)?/, "");
     // Bundler-generated absolute URLs and dependency frames cannot be safely
     // mapped to a local checkout using only a root folder.
-    if (/^(?:https?:|\/|[a-z]:\/)/i.test(source) || source.includes("node_modules/")) return [];
+    if (/^(?:https?:|\/|[a-z]:\/)/i.test(source) || source.includes("node_modules/") || source.split(/[\\/]/).includes("..")) return [];
     return [{ source, line: Number(match[2]), column: Number(match[3]) || 1 }];
   }).filter((frame, index, all) => all.findIndex((item) => item.source === frame.source && item.line === frame.line) === index);
 }
@@ -34,7 +34,7 @@ function makeVsCodeUrl(projectRoot, frame) {
   const root = (projectRoot || "").trim().replace(/[\\/]+$/, "");
   if (!root || !frame) return "";
   const fullPath = `${root}/${frame.source}`.replace(/\\/g, "/");
-  return `vscode://file/${fullPath}:${frame.line}:${frame.column}`;
+  return `vscode://file/${encodeURI(fullPath)}:${frame.line}:${frame.column}`;
 }
 
 const TYPE_BADGES = {
