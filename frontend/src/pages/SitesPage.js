@@ -56,11 +56,11 @@ export default function SitesPage({
   message = "",
   session,
   onNavigate,
-  onRefresh,
 }) {
   const projects = propProjects;
   const [showAddForm, setShowAddForm] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("");
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [removingSite, setRemovingSite] = useState(false);
@@ -149,36 +149,21 @@ export default function SitesPage({
     );
   }
 
-  // Send a real test error to verify connection
-  const handleSendTestError = async () => {
+  // Check the project key and backend without adding a fake error to history.
+  const handleTestConnection = async () => {
     if (!current?.api_key) return;
     setSendingTest(true);
+    setConnectionStatus("");
 
     try {
-      const res = await fetch(`${API_BASE}/errors`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-sitewatch-key": current.api_key,
-        },
-        body: JSON.stringify({
-          type: "javascript",
-          message: `SiteWatch verification error on ${current.name || domain}`,
-          url: current.website_url || `https://${domain}/test`,
-          page: "/verification-test",
-          stack: "Error: Verification test error",
-        }),
+      const res = await fetch(`${API_BASE}/errors?limit=1`, {
+        headers: { "x-sitewatch-key": current.api_key },
       });
-
-      if (res.ok) {
-        if (onRefresh) onRefresh(false);
-        alert(`Success! A test error was logged for ${current.name}. Check your Errors page!`);
-      } else {
-        const errData = await res.json();
-        alert(`Failed to log error: ${errData.message || "Check your API key"}`);
-      }
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.message || "Could not connect to the SiteWatch API.");
+      setConnectionStatus("Connection works. Add the monitoring code below and redeploy your site to start receiving its errors.");
     } catch (err) {
-      alert(`Network error: ${err.message}`);
+      setConnectionStatus(`Connection failed: ${err.message}`);
     } finally {
       setSendingTest(false);
     }
@@ -304,12 +289,12 @@ export default function SitesPage({
               Your site hasn't reported any runtime crashes or failed API requests.
             </p>
             <button
-              onClick={handleSendTestError}
+              onClick={handleTestConnection}
               disabled={sendingTest}
               className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
             >
               <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-              {sendingTest ? "Sending test error..." : "Send a test error to verify"}
+              {sendingTest ? "Checking..." : "Test connection"}
             </button>
           </div>
         ) : (
@@ -351,22 +336,28 @@ export default function SitesPage({
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div>
             <h2 className="text-base font-bold text-gray-900">
-              SDK Integration & API Key
+              Connect your website
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
-              Add this code snippet to your website HTML to automatically send errors to this dashboard.
+              Add the code below to your website once, then redeploy it. SiteWatch will collect new browser errors.
             </p>
           </div>
 
           <button
-            onClick={handleSendTestError}
+            onClick={handleTestConnection}
             disabled={sendingTest}
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
           >
             <Play className="w-3 h-3 text-[#2d6a4f]" />
-            {sendingTest ? "Testing..." : "Send Test Error"}
+            {sendingTest ? "Checking..." : "Test connection"}
           </button>
         </div>
+
+        {connectionStatus && (
+          <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-xs ${connectionStatus.startsWith("Connection works") ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
+            {connectionStatus}
+          </p>
+        )}
 
         <div className="pt-4 space-y-4">
           {/* API Key */}

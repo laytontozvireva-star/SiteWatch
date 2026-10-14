@@ -19,6 +19,7 @@ export default function AddWebsite({ onProjectCreated }) {
   const [createdProject, setCreatedProject] = useState(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
+  const [framework, setFramework] = useState("html");
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -84,10 +85,18 @@ export default function AddWebsite({ onProjectCreated }) {
     setTimeout(() => setCopiedKey(false), 2000);
   };
 
-  const copySnippet = () => {
+  const getSnippet = () => {
     if (!createdProject?.api_key) return;
     const host = API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000");
-    const snippet = `<script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`;
+    if (framework === "next") {
+      return `import Script from "next/script";\n\n<Script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}"\n  strategy="afterInteractive"\n/>`;
+    }
+    return `<script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`;
+  };
+
+  const copySnippet = () => {
+    const snippet = getSnippet();
+    if (!snippet) return;
     navigator.clipboard.writeText(snippet);
     setCopiedSnippet(true);
     setTimeout(() => setCopiedSnippet(false), 2000);
@@ -98,7 +107,7 @@ export default function AddWebsite({ onProjectCreated }) {
       <div className="mb-4">
         <h2 className="text-xl font-bold text-gray-900">Add a Website</h2>
         <p className="mt-1 text-sm text-gray-500">
-          Register a website to generate its monitoring key and start tracking errors automatically.
+          Add your website, then follow the short setup guide to start collecting its errors.
         </p>
       </div>
 
@@ -159,54 +168,64 @@ export default function AddWebsite({ onProjectCreated }) {
         <div className="mt-6 rounded-2xl border border-green-200 bg-green-50/60 p-5">
           <div className="flex items-center gap-2 text-green-800 font-bold text-sm mb-2">
             <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <span>{createdProject.name} registered & activated!</span>
+            <span>{createdProject.name} added and selected!</span>
           </div>
 
           <p className="text-xs text-gray-600 mb-3">
-            This project has been automatically selected as your active monitoring project.
+            Finish the setup below to connect your website to SiteWatch.
           </p>
 
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
-                Generated API Key
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={createdProject.api_key || ""}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-1.5 font-mono text-xs text-gray-800 outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={copyKey}
-                  className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
+          <div className="mt-5 rounded-xl border border-green-200 bg-white p-4">
+            <h3 className="text-sm font-bold text-gray-900">Finish setup in 3 steps</h3>
+            <ol className="mt-3 space-y-3 text-sm text-gray-700">
+              <li><span className="mr-2 font-bold text-[#2d6a4f]">1.</span>Choose how your website is built.</li>
+              <li>
+                <span className="mr-2 font-bold text-[#2d6a4f]">2.</span>Copy the code and add it to your site:
+                <select
+                  aria-label="Website framework"
+                  value={framework}
+                  onChange={(event) => { setFramework(event.target.value); setCopiedSnippet(false); }}
+                  className="ml-2 rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs"
                 >
-                  {copiedKey ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copiedKey ? "Copied" : "Copy Key"}
-                </button>
-              </div>
-            </div>
+                  <option value="html">HTML</option>
+                  <option value="react">React, Vite, or Create React App</option>
+                  <option value="next">Next.js</option>
+                </select>
+                <p className="ml-6 mt-1 text-xs text-gray-500">
+                  {framework === "next"
+                    ? "In app/layout.js, import next/script and place the code inside the page body."
+                    : framework === "react"
+                      ? "In index.html (or public/index.html for Create React App), just before </body>."
+                      : "In your main HTML file, just before </body>."}
+                </p>
+              </li>
+              <li><span className="mr-2 font-bold text-[#2d6a4f]">3.</span>Deploy your website. New browser errors will then appear here.</li>
+            </ol>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-gray-700">
-                  Ready-to-Paste HTML Snippet
-                </label>
-                <button
-                  type="button"
-                  onClick={copySnippet}
-                  className="text-xs font-semibold text-[#2d6a4f] hover:underline inline-flex items-center gap-1"
-                >
-                  {copiedSnippet ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                  {copiedSnippet ? "Copied snippet!" : "Copy Snippet"}
+            <div className="mt-4 flex items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-gray-600">Monitoring code</p>
+              <button
+                type="button"
+                onClick={copySnippet}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-[#2d6a4f] hover:underline"
+              >
+                {copiedSnippet ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copiedSnippet ? "Copied" : "Copy code"}
+              </button>
+            </div>
+            <pre className="mt-2 overflow-x-auto rounded-xl bg-gray-900 p-3 font-mono text-xs text-emerald-400">{getSnippet()}</pre>
+            <p className="mt-2 text-xs text-gray-500">This setup is one-time per website. It only reports errors that happen after the code is installed.</p>
+
+            <details className="mt-4 border-t border-gray-100 pt-3">
+              <summary className="cursor-pointer text-xs font-semibold text-gray-600">Need the API key instead?</summary>
+              <div className="mt-2 flex items-center gap-2">
+                <input type="text" readOnly value={createdProject.api_key || ""} aria-label="Project API key" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-1.5 font-mono text-xs text-gray-800 outline-none" />
+                <button type="button" onClick={copyKey} className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                  {copiedKey ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedKey ? "Copied" : "Copy key"}
                 </button>
               </div>
-              <pre className="rounded-xl bg-gray-900 p-3 font-mono text-xs text-emerald-400 overflow-x-auto">
-                {`<script\n  src="${API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000")}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`}
-              </pre>
-            </div>
+            </details>
           </div>
         </div>
       )}
