@@ -34,16 +34,14 @@ export default function Sidebar({
         </div>
 
         {/* Project Switcher (Supabase / GitHub Style) */}
-        {projects && projects.length > 0 && (
-          <div className="px-3 mb-5">
-            <ProjectSwitcher
-              projects={projects}
-              activeProject={activeProject}
-              onSelectProject={onSelectProject}
-              onNavigate={onNavigate}
-            />
-          </div>
-        )}
+        <div className="px-3 mb-5">
+          <ProjectSwitcher
+            projects={projects && projects.length > 0 ? projects : [activeProject || { name: "Gospel tube" }]}
+            activeProject={activeProject || (projects && projects[0]) || { name: "Gospel tube" }}
+            onSelectProject={onSelectProject}
+            onNavigate={onNavigate}
+          />
+        </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-3 space-y-1">

@@ -18,6 +18,14 @@ const API_BASE = (() => {
   }
   return "http://localhost:5000/api";
 })();
+const DEFAULT_SITE = {
+  id: "default-gospel-tube",
+  name: "Gospel tube",
+  website_url:
+    "https://gospel-tube-app-git-master-laytontozvireva-stars-projects.vercel.app/",
+  api_key: "sw_46c71c87-c5a9-4a16-891d-6c169ca5789d",
+};
+
 const API_KEY = "sw_3fe83516-e68b-43c8-b1c4-e050280e79ff";
 
 const EMPTY_ANALYTICS = {
@@ -45,8 +53,8 @@ function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [readingAlerts, setReadingAlerts] = useState([]);
   const [session, setSession] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [activeProject, setActiveProject] = useState(null);
+  const [projects, setProjects] = useState([DEFAULT_SITE]);
+  const [activeProject, setActiveProject] = useState(DEFAULT_SITE);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
@@ -99,8 +107,8 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
-    setProjects([]);
-    setActiveProject(null);
+    setProjects([DEFAULT_SITE]);
+    setActiveProject(DEFAULT_SITE);
     localStorage.removeItem("sitewatch_active_project_id");
   };
 

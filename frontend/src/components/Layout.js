@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Menu, X, Layout } from "lucide-react";
 import Sidebar, { NAV_ITEMS } from "./Sidebar";
+import ProjectSwitcher from "./ProjectSwitcher";
 
 export default function AppLayout({
   currentPage,
@@ -54,6 +55,21 @@ export default function AppLayout({
               >
                 <X className="w-5 h-5" />
               </button>
+            </div>
+
+            <div className="px-3 mb-4">
+              <ProjectSwitcher
+                projects={projects && projects.length > 0 ? projects : [activeProject || { name: "Gospel tube" }]}
+                activeProject={activeProject || (projects && projects[0]) || { name: "Gospel tube" }}
+                onSelectProject={(project) => {
+                  if (onSelectProject) onSelectProject(project);
+                  setMobileOpen(false);
+                }}
+                onNavigate={(page) => {
+                  if (onNavigate) onNavigate(page);
+                  setMobileOpen(false);
+                }}
+              />
             </div>
 
             <nav className="flex-1 px-3 space-y-1 overflow-y-auto">
