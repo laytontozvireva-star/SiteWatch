@@ -61,6 +61,7 @@ export default function SitesPage({
   const [showAddForm, setShowAddForm] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState("");
+  const [framework, setFramework] = useState("html");
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [removingSite, setRemovingSite] = useState(false);
@@ -177,10 +178,9 @@ export default function SitesPage({
     }
     return "http://localhost:5000";
   })();
-  const sdkSnippet = `<script
-  src="${backendBase}/sdk/sitewatch.js"
-  data-site-key="${current.api_key || "sw_your_key_here"}">
-</script>`;
+  const sdkSnippet = framework === "next"
+    ? `import Script from "next/script";\n\n<Script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}"\n  strategy="afterInteractive"\n/>`
+    : `<script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}">\n</script>`;
 
   const copyText = (text, type) => {
     navigator.clipboard.writeText(text);
@@ -338,9 +338,7 @@ export default function SitesPage({
             <h2 className="text-base font-bold text-gray-900">
               Connect your website
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Add the code below to your website once, then redeploy it. SiteWatch will collect new browser errors.
-            </p>
+            <p className="text-xs text-gray-500 mt-0.5">One-time setup: choose your website type, add the code, and redeploy.</p>
           </div>
 
           <button
@@ -360,34 +358,26 @@ export default function SitesPage({
         )}
 
         <div className="pt-4 space-y-4">
-          {/* API Key */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">
-              Project API Key
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={current.api_key || "sw_..."}
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 font-mono text-xs text-gray-800 outline-none"
-              />
-              <button
-                onClick={() => copyText(current.api_key || "", "key")}
-                className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                {copiedKey ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedKey ? "Copied" : "Copy"}
-              </button>
-            </div>
+            <label htmlFor="site-framework" className="mb-1 block text-xs font-semibold uppercase tracking-wider text-gray-500">1. Choose your website type</label>
+            <select id="site-framework" value={framework} onChange={(event) => { setFramework(event.target.value); setCopiedScript(false); }} className="w-full max-w-sm rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800">
+              <option value="html">HTML</option>
+              <option value="react">React, Vite, or Create React App</option>
+              <option value="next">Next.js</option>
+            </select>
           </div>
 
-          {/* HTML Script Snippet */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500">
-                HTML Embed Snippet
-              </label>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">2. Add the code to your site</p>
+            <p className="mt-1 text-xs text-gray-600">
+              {framework === "next"
+                ? "In app/layout.js, import next/script and place this component inside the page body."
+                : framework === "react"
+                  ? "In index.html (or public/index.html for Create React App), just before </body>."
+                  : "In your main HTML file, just before </body>."}
+            </p>
+            <div className="mt-2 flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-gray-500">Monitoring code</label>
               <button
                 onClick={() => copyText(sdkSnippet, "script")}
                 className="text-xs font-medium text-[#2d6a4f] hover:underline inline-flex items-center gap-1"
@@ -400,6 +390,18 @@ export default function SitesPage({
               {sdkSnippet}
             </pre>
           </div>
+          <p className="text-xs text-gray-600"><span className="font-semibold">3. Redeploy your website.</span> SiteWatch will collect errors that happen after the code is installed.</p>
+
+          <details className="border-t border-gray-100 pt-3">
+            <summary className="cursor-pointer text-xs font-semibold text-gray-600">Need the API key by itself?</summary>
+            <div className="mt-2 flex items-center gap-2">
+              <input type="text" readOnly value={current.api_key || "sw_..."} aria-label="Project API key" className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 font-mono text-xs text-gray-800 outline-none" />
+              <button onClick={() => copyText(current.api_key || "", "key")} className="shrink-0 inline-flex items-center gap-1 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                {copiedKey ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                {copiedKey ? "Copied" : "Copy key"}
+              </button>
+            </div>
+          </details>
         </div>
       </div>
     </div>
