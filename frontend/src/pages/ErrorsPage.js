@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Search,
   X,
@@ -124,6 +124,7 @@ export default function ErrorsPage({
   const [copied, setCopied] = useState(false);
   const [sortField, setSortField] = useState("created_at"); // "count", "created_at", "type"
   const [sortDirection, setSortDirection] = useState("desc");
+  const detailsPanelRef = useRef(null);
 
   // Summary counts
   const summaryStats = useMemo(() => {
@@ -188,6 +189,12 @@ export default function ErrorsPage({
     } catch {
       // The app-level error banner displays the failure.
     }
+  };
+
+  const openErrorDetails = (event, error) => {
+    event.stopPropagation();
+    setSelectedErrorId(error.id);
+    detailsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   };
 
   // Active selected error
@@ -577,9 +584,18 @@ export default function ErrorsPage({
                         </td>
                         <td className="px-5 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
-                            <span className={`text-xs font-semibold ${error.resolved_at ? "text-emerald-700" : "text-amber-700"}`}>
-                              {error.resolved_at ? "Done" : "Open"}
-                            </span>
+                            {error.resolved_at ? (
+                              <span className="text-xs font-semibold text-emerald-700">Done</span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(event) => openErrorDetails(event, error)}
+                                className="rounded px-1 py-1 text-xs font-semibold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                title="Open this error’s details"
+                              >
+                                Open
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={(event) => handleToggleResolved(event, error)}
@@ -598,7 +614,7 @@ export default function ErrorsPage({
             </div>
 
             {/* Selected Row Stack Trace & Inspection Panel */}
-            <div className="border-t border-gray-200 bg-gray-50/40 p-6">
+            <div ref={detailsPanelRef} className="border-t border-gray-200 bg-gray-50/40 p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
                   <Code2 className="w-4 h-4 text-gray-500" />
