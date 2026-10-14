@@ -166,7 +166,7 @@ export default function SitesPage({
           message: `SiteWatch verification error on ${current.name || domain}`,
           url: current.website_url || `https://${domain}/test`,
           page: "/verification-test",
-          stack: `Error: Verification test error\n    at testConnection (sitewatch-dashboard.js:1:1)`,
+          stack: "Error: Verification test error",
         }),
       });
 

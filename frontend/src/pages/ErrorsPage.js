@@ -25,7 +25,12 @@ function getStackFrames(stack) {
     source = source.replace(/^\.\//, "").replace(/^\/?(?:\*\/)?/, "");
     // Bundler-generated absolute URLs and dependency frames cannot be safely
     // mapped to a local checkout using only a root folder.
-    if (/^(?:https?:|\/|[a-z]:\/)/i.test(source) || source.includes("node_modules/") || source.split(/[\\/]/).includes("..")) return [];
+    if (
+      /^(?:https?:|\/|[a-z]:\/)/i.test(source) ||
+      source.includes("node_modules/") ||
+      source.split(/[\\/]/).includes("..") ||
+      source === "sitewatch-dashboard.js"
+    ) return [];
     return [{ source, line: Number(match[2]), column: Number(match[3]) || 1 }];
   }).filter((frame, index, all) => all.findIndex((item) => item.source === frame.source && item.line === frame.line) === index);
 }
