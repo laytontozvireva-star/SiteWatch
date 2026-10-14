@@ -2,7 +2,14 @@ import { useState } from "react";
 import { Copy, Check, CheckCircle2, AlertCircle } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
-const API_URL = "http://localhost:5000";
+const API_URL = (() => {
+  if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL.replace(/\/api\/?$/, "");
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/$/, "");
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+    return "";
+  }
+  return "http://localhost:5000";
+})();
 
 export default function AddWebsite({ onProjectCreated }) {
   const [name, setName] = useState("");
@@ -79,7 +86,8 @@ export default function AddWebsite({ onProjectCreated }) {
 
   const copySnippet = () => {
     if (!createdProject?.api_key) return;
-    const snippet = `<script\n  src="http://localhost:5000/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`;
+    const host = API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000");
+    const snippet = `<script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`;
     navigator.clipboard.writeText(snippet);
     setCopiedSnippet(true);
     setTimeout(() => setCopiedSnippet(false), 2000);
@@ -196,7 +204,7 @@ export default function AddWebsite({ onProjectCreated }) {
                 </button>
               </div>
               <pre className="rounded-xl bg-gray-900 p-3 font-mono text-xs text-emerald-400 overflow-x-auto">
-                {`<script\n  src="http://localhost:5000/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`}
+                {`<script\n  src="${API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000")}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`}
               </pre>
             </div>
           </div>

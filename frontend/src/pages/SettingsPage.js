@@ -1,6 +1,6 @@
 import { User, LogOut, Key, ShieldCheck, LogIn } from "lucide-react";
 
-export default function SettingsPage({ session, onNavigate, onSignOut }) {
+export default function SettingsPage({ session, onNavigate, onSignOut, activeProject }) {
   const user = session?.user;
 
   return (
@@ -98,7 +98,7 @@ export default function SettingsPage({ session, onNavigate, onSignOut }) {
               <input
                 type="text"
                 readOnly
-                value="sw_3fe83516-e68b-43c8-b1c4-e050280e79ff"
+                value={activeProject?.api_key || "No project selected"}
                 className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 font-mono text-xs text-gray-700 outline-none"
               />
             </div>
