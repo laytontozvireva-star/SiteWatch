@@ -329,7 +329,7 @@ function App() {
     loadErrors(true);
   }, [loadErrors]);
 
-  // Periodic automatic polling in the background every 15 seconds
+  // Refresh project data at the cadence shown in the sidebar.
   useEffect(() => {
     const timer = setInterval(() => {
       loadErrors(false);
@@ -422,6 +422,7 @@ function App() {
         error.page,
         error.url,
         error.type,
+        error.stack,
       ]
         .filter(Boolean)
         .join(" ")
