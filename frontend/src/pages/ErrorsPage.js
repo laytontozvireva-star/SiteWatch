@@ -122,6 +122,7 @@ export default function ErrorsPage({
   const [statusFilter, setStatusFilter] = useState("open");
   const [selectedErrorId, setSelectedErrorId] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [sourceOpenMessage, setSourceOpenMessage] = useState("");
   const [sortField, setSortField] = useState("created_at"); // "count", "created_at", "type"
   const [sortDirection, setSortDirection] = useState("desc");
   const detailsPanelRef = useRef(null);
@@ -193,8 +194,23 @@ export default function ErrorsPage({
 
   const openErrorDetails = (event, error) => {
     event.stopPropagation();
+    setSourceOpenMessage("");
     setSelectedErrorId(error.id);
-    detailsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const frame = getStackFrames(error.stack)[0];
+    const vscodeUrl = makeVsCodeUrl(localProjectRoot, frame);
+    if (vscodeUrl) {
+      window.location.href = vscodeUrl;
+      return;
+    }
+
+    setSourceOpenMessage(
+      !localProjectRoot
+        ? "Add this project’s local folder in Settings to open its source in VS Code."
+        : "This error has no recognizable relative source file and line to open in VS Code."
+    );
+    window.setTimeout(() => {
+      detailsPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
   };
 
   // Active selected error
@@ -517,7 +533,10 @@ export default function ErrorsPage({
                     return (
                       <tr
                         key={error.id}
-                        onClick={() => setSelectedErrorId(error.id)}
+                        onClick={() => {
+                          setSourceOpenMessage("");
+                          setSelectedErrorId(error.id);
+                        }}
                         className={`cursor-pointer transition-colors ${
                           isSelected
                             ? "bg-blue-50/60 font-medium"
@@ -591,7 +610,7 @@ export default function ErrorsPage({
                                 type="button"
                                 onClick={(event) => openErrorDetails(event, error)}
                                 className="rounded px-1 py-1 text-xs font-semibold text-amber-700 underline decoration-dotted underline-offset-2 hover:text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                title="Open this error’s details"
+                                title="Open this error in VS Code"
                               >
                                 Open
                               </button>
@@ -615,6 +634,11 @@ export default function ErrorsPage({
 
             {/* Selected Row Stack Trace & Inspection Panel */}
             <div ref={detailsPanelRef} className="border-t border-gray-200 bg-gray-50/40 p-6">
+              {sourceOpenMessage && (
+                <div role="status" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  {sourceOpenMessage}
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
                   <Code2 className="w-4 h-4 text-gray-500" />
