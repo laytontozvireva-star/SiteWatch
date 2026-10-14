@@ -123,4 +123,39 @@ router.post(
   }
 );
 
+/**
+ * DELETE /api/projects/:id - Remove a project owned by the signed-in user
+ */
+router.delete("/projects/:id", requireUser, async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from("projects")
+      .delete()
+      .eq("id", req.params.id)
+      .eq("owner_id", req.authUser.id)
+      .select("id, api_key")
+      .maybeSingle();
+
+    if (error) {
+      logger.error("Delete project error:", error);
+      return res.status(409).json({
+        success: false,
+        message: "Could not remove this site. Its monitoring data may still be linked to it.",
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: "Site not found.",
+      });
+    }
+
+    invalidateProjectKey(data.api_key);
+    return res.json({ success: true, message: "Site removed successfully." });
+  } catch (error) {
+    next(error);
+  }
+});
+
 module.exports = router;

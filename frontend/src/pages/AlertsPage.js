@@ -44,6 +44,8 @@ export default function AlertsPage({
   onMarkAllAsRead,
   readingAlerts,
   unreadAlerts,
+  message = "",
+  setMessage,
 }) {
   const [activeTab, setActiveTab] = useState("unread");
 
@@ -55,6 +57,12 @@ export default function AlertsPage({
 
   return (
     <div className="px-6 py-8 lg:px-10">
+      {message && (
+        <div className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div><p className="font-semibold">Something needs attention</p><p className="mt-1">{message}</p></div>
+          <button onClick={() => setMessage?.("")} aria-label="Dismiss message" className="font-semibold">×</button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Alerts</h1>

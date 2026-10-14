@@ -112,6 +112,47 @@ router.get(
 );
 
 /**
+ * PATCH /api/errors/:id/resolution - Mark one project error open or resolved
+ */
+router.patch(
+  "/errors/:id/resolution",
+  requireApiKey,
+  validate([
+    body("resolved").isBoolean().withMessage("Resolved must be true or false.").toBoolean(),
+  ]),
+  async (req, res, next) => {
+    try {
+      const { data, error } = await supabase
+        .from("errors")
+        .update({ resolved_at: req.body.resolved ? new Date().toISOString() : null })
+        .eq("id", req.params.id)
+        .eq("project_id", req.project.id)
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        logger.error("Failed to update error resolution:", error);
+        return res.status(500).json({
+          success: false,
+          message: "Could not update this error. Make sure the resolved_at database migration has been applied.",
+        });
+      }
+
+      if (!data) {
+        return res.status(404).json({
+          success: false,
+          message: "Error record not found for this site.",
+        });
+      }
+
+      return res.json({ success: true, error: data });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
  * GET /api/errors/:id - Get specific error details
  */
 router.get("/errors/:id", requireApiKey, async (req, res, next) => {

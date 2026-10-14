@@ -307,7 +307,10 @@ page
 stack
 browser
 created_at
+resolved_at
 ```
+
+`resolved_at` is null while an error is open and stores the time it was marked done. Resolved errors remain in the errors table and in history.
 
 ## Error Events
 

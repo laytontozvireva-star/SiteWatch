@@ -40,7 +40,7 @@ export default function ProjectSwitcher({
     }
   };
 
-  const currentProjectName = activeProject?.name || "Select Project";
+  const currentProjectName = activeProject?.name || (projects.length ? "Select Project" : "No sites yet");
   const currentInitial = (activeProject?.name || "S").charAt(0).toUpperCase();
 
   return (
@@ -102,7 +102,7 @@ export default function ProjectSwitcher({
           <div className="max-h-56 overflow-y-auto py-1 divide-y divide-slate-800/40">
             {filteredProjects.length === 0 ? (
               <div className="px-3 py-3 text-center text-xs text-gray-400">
-                No matching projects found
+                {projects.length === 0 ? "No sites registered yet" : "No matching projects found"}
               </div>
             ) : (
               filteredProjects.map((project) => {

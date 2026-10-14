@@ -11,7 +11,31 @@ import {
   Code2,
   CheckCircle2,
   Download,
+  ExternalLink,
 } from "lucide-react";
+
+function getStackFrames(stack) {
+  if (!stack) return [];
+  return stack.split("\n").flatMap((line) => {
+    // V8/Firefox frames commonly end with file.js:line:column. Keep only source
+    // paths that can sensibly be mapped below a configured local project root.
+    const match = line.match(/(?:at\s+.*?\()?((?:webpack-internal:\/\/\/|webpack:\/\/\/|file:\/\/)?[^()\s]+\.[cm]?[jt]sx?)(?::(\d+))(?::(\d+))?\)?\s*$/i);
+    if (!match) return [];
+    let source = match[1].replace(/^(?:webpack-internal:\/\/\/|webpack:\/\/\/|file:\/\/)/, "");
+    source = source.replace(/^\.\//, "").replace(/^\/?(?:\*\/)?/, "");
+    // Bundler-generated absolute URLs and dependency frames cannot be safely
+    // mapped to a local checkout using only a root folder.
+    if (/^(?:https?:|\/|[a-z]:\/)/i.test(source) || source.includes("node_modules/")) return [];
+    return [{ source, line: Number(match[2]), column: Number(match[3]) || 1 }];
+  }).filter((frame, index, all) => all.findIndex((item) => item.source === frame.source && item.line === frame.line) === index);
+}
+
+function makeVsCodeUrl(projectRoot, frame) {
+  const root = (projectRoot || "").trim().replace(/[\\/]+$/, "");
+  if (!root || !frame) return "";
+  const fullPath = `${root}/${frame.source}`.replace(/\\/g, "/");
+  return `vscode://file/${fullPath}:${frame.line}:${frame.column}`;
+}
 
 const TYPE_BADGES = {
   javascript: {
@@ -85,8 +109,17 @@ export default function ErrorsPage({
   range,
   setRange,
   loading,
+  message = "",
+  setMessage,
+  onSetErrorResolved,
+  resolvingErrorId,
+  onLoadMore,
+  hasMoreErrors = false,
+  loadingMoreErrors = false,
+  localProjectRoot = "",
 }) {
   const [siteFilter, setSiteFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("open");
   const [selectedErrorId, setSelectedErrorId] = useState(null);
   const [copied, setCopied] = useState(false);
   const [sortField, setSortField] = useState("created_at"); // "count", "created_at", "type"
@@ -115,6 +148,8 @@ export default function ErrorsPage({
   // Filter & sort
   const displayedErrors = useMemo(() => {
     let result = filteredErrors.filter((err) => {
+      if (statusFilter === "open" && err.resolved_at) return false;
+      if (statusFilter === "resolved" && !err.resolved_at) return false;
       if (siteFilter === "all") return true;
       return getHostname(err.url) === siteFilter;
     });
@@ -137,12 +172,29 @@ export default function ErrorsPage({
     });
 
     return result;
-  }, [filteredErrors, siteFilter, sortField, sortDirection]);
+  }, [filteredErrors, siteFilter, statusFilter, sortField, sortDirection]);
+
+  const statusCounts = {
+    open: errors.filter((error) => !error.resolved_at).length,
+    resolved: errors.filter((error) => Boolean(error.resolved_at)).length,
+    history: errors.length,
+  };
+
+  const handleToggleResolved = async (event, error) => {
+    event.stopPropagation();
+    if (!onSetErrorResolved || resolvingErrorId) return;
+    try {
+      await onSetErrorResolved(error, !error.resolved_at);
+    } catch {
+      // The app-level error banner displays the failure.
+    }
+  };
 
   // Active selected error
   const activeErrorId = selectedErrorId ?? displayedErrors[0]?.id;
   const selectedError =
     displayedErrors.find((e) => e.id === activeErrorId) || displayedErrors[0];
+  const stackFrames = useMemo(() => getStackFrames(selectedError?.stack), [selectedError?.stack]);
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -209,6 +261,12 @@ export default function ErrorsPage({
 
   return (
     <div className="px-6 py-8 lg:px-10 max-w-7xl">
+      {message && (
+        <div className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <div><p className="font-semibold">Something needs attention</p><p className="mt-1">{message}</p></div>
+          <button onClick={() => setMessage?.("")} aria-label="Dismiss message" className="font-semibold">×</button>
+        </div>
+      )}
       {/* Header with Title and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
@@ -267,6 +325,23 @@ export default function ErrorsPage({
           </div>
           <p className="text-xl font-bold text-purple-700 mt-1">{summaryStats.promise}</p>
         </div>
+      </div>
+
+      <div className="mb-5 flex flex-wrap items-center gap-2" aria-label="Error status filter">
+        {[
+          { id: "open", label: "Open" },
+          { id: "resolved", label: "Resolved" },
+          { id: "history", label: "History" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setStatusFilter(tab.id)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${statusFilter === tab.id ? "bg-gray-900 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
+          >
+            {tab.label} <span className="ml-1 opacity-70">{statusCounts[tab.id]}</span>
+          </button>
+        ))}
       </div>
 
       {/* Search and Filters row */}
@@ -361,7 +436,11 @@ export default function ErrorsPage({
             <p className="mt-1 text-sm text-gray-500 max-w-sm">
               {hasActiveFilters
                 ? "No errors found matching your filter criteria. Try adjusting the search term or filters."
-                : "Great news! No errors have been recorded for this period."}
+                : statusFilter === "resolved"
+                  ? "No resolved errors yet. Errors you mark done will stay here."
+                  : statusFilter === "open"
+                    ? "There are no open errors. Resolved errors remain available in history."
+                    : "No errors have been recorded for this period."}
             </p>
             {hasActiveFilters && (
               <button
@@ -415,6 +494,7 @@ export default function ErrorsPage({
                         {renderSortIcon("created_at")}
                       </div>
                     </th>
+                    <th className="px-5 py-3.5 min-w-[150px]">STATUS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -495,6 +575,21 @@ export default function ErrorsPage({
                         >
                           {formatRelativeTime(error.created_at)}
                         </td>
+                        <td className="px-5 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <span className={`text-xs font-semibold ${error.resolved_at ? "text-emerald-700" : "text-amber-700"}`}>
+                              {error.resolved_at ? "Done" : "Open"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(event) => handleToggleResolved(event, error)}
+                              disabled={Boolean(resolvingErrorId)}
+                              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              {resolvingErrorId === error.id ? "Saving…" : error.resolved_at ? "Reopen" : "Mark done"}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -543,6 +638,31 @@ export default function ErrorsPage({
                 )}
               </div>
 
+              {selectedError && (
+                <div className="mt-4 rounded-xl border border-gray-200 bg-white p-4">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-600">Source locations</p>
+                    {!localProjectRoot && <span className="text-xs text-gray-500">Set your local folder in Settings to open files in VS Code.</span>}
+                  </div>
+                  {stackFrames.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {stackFrames.map((frame) => {
+                        const url = makeVsCodeUrl(localProjectRoot, frame);
+                        return url ? (
+                          <a key={`${frame.source}:${frame.line}`} href={url} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 font-mono text-xs font-semibold text-blue-800 hover:bg-blue-100">
+                            <ExternalLink className="h-3.5 w-3.5" /> {frame.source}:{frame.line}
+                          </a>
+                        ) : (
+                          <span key={`${frame.source}:${frame.line}`} className="rounded-lg bg-gray-100 px-3 py-2 font-mono text-xs text-gray-700">{frame.source}:{frame.line}</span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No recognizable source file and line were included in this stack trace.</p>
+                  )}
+                </div>
+              )}
+
               {/* Stack trace display */}
               <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-inner">
                 {selectedError?.stack ? (
@@ -573,6 +693,18 @@ export default function ErrorsPage({
           </>
         )}
       </div>
+      {hasMoreErrors && (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={onLoadMore}
+            disabled={loadingMoreErrors}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            {loadingMoreErrors ? "Loading older errors…" : "Load older errors"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

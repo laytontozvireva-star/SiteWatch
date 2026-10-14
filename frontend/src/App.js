@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import AppLayout from "./components/Layout";
 import OverviewPage from "./pages/OverviewPage";
@@ -18,8 +18,6 @@ const API_BASE = (() => {
   }
   return "http://localhost:5000/api";
 })();
-const API_KEY = "sw_3fe83516-e68b-43c8-b1c4-e050280e79ff";
-
 const EMPTY_ANALYTICS = {
   totalErrors: 0,
   javascriptErrors: 0,
@@ -31,6 +29,8 @@ function App() {
   const [currentPage, setCurrentPage] = useState("overview");
 
   const [errors, setErrors] = useState([]);
+  const errorsRef = useRef(errors);
+  errorsRef.current = errors;
   const [analytics, setAnalytics] = useState(EMPTY_ANALYTICS);
   const [trend, setTrend] = useState({});
   const [commonErrors, setCommonErrors] = useState([]);
@@ -47,6 +47,15 @@ function App() {
   const [session, setSession] = useState(null);
   const [projects, setProjects] = useState([]);
   const [activeProject, setActiveProject] = useState(null);
+  const [projectsLoading, setProjectsLoading] = useState(true);
+  const [projectsError, setProjectsError] = useState("");
+  const [projectReload, setProjectReload] = useState(0);
+  const [resolvingErrorId, setResolvingErrorId] = useState(null);
+  const [hasMoreErrors, setHasMoreErrors] = useState(false);
+  const [loadingMoreErrors, setLoadingMoreErrors] = useState(false);
+  const loadRequestId = useRef(0);
+  const activeProjectIdRef = useRef(null);
+  activeProjectIdRef.current = activeProject?.id || null;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
@@ -67,18 +76,36 @@ function App() {
     if (!session?.access_token) {
       setProjects([]);
       setActiveProject(null);
+      setLoadingMoreErrors(false);
+      setProjectsLoading(false);
+      setProjectsError("");
       return;
     }
 
     let cancelled = false;
+    setProjects([]);
+    setActiveProject(null);
+    setResolvingErrorId(null);
+    setLoadingMoreErrors(false);
+    setProjectsLoading(true);
+    setProjectsError("");
     fetch(`${API_BASE}/projects`, {
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (!res.ok) {
+          const result = await res.json().catch(() => ({}));
+          throw new Error(result.message || "Could not load your sites.");
+        }
+        return res.json();
+      })
       .then((data) => {
-        if (cancelled || !Array.isArray(data?.projects)) return;
+        if (cancelled) return;
+        if (!Array.isArray(data?.projects)) {
+          throw new Error("The server returned an invalid site list.");
+        }
         const nextProjects = data.projects;
         setProjects(nextProjects);
         const savedId = localStorage.getItem("sitewatch_active_project_id");
@@ -86,12 +113,19 @@ function App() {
         setActiveProject(initial);
         if (!initial) localStorage.removeItem("sitewatch_active_project_id");
       })
-      .catch((err) => console.error("Could not fetch user projects", err));
+      .catch((err) => {
+        if (!cancelled) setProjectsError(err.message || "Could not load your sites.");
+      })
+      .finally(() => {
+        if (!cancelled) setProjectsLoading(false);
+      });
     return () => { cancelled = true; };
-  }, [session]);
+  }, [session, projectReload]);
 
   const handleSelectProject = (project) => {
     setActiveProject(project);
+    setResolvingErrorId(null);
+    setLoadingMoreErrors(false);
     if (project?.id) {
       localStorage.setItem("sitewatch_active_project_id", project.id);
     }
@@ -99,33 +133,85 @@ function App() {
 
   const handleProjectCreated = (newProject) => {
     setProjects((prev) => [newProject, ...prev]);
+    setProjectsError("");
     handleSelectProject(newProject);
   };
 
+  const handleProjectDeleted = async (project) => {
+    const response = await fetch(`${API_BASE}/projects/${project.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.message || "Could not remove this site.");
+    }
+
+    const remaining = projects.filter((item) => item.id !== project.id);
+    setProjects(remaining);
+    if (activeProject?.id === project.id) {
+      const nextProject = remaining[0] || null;
+      setActiveProject(nextProject);
+      setLoadingMoreErrors(false);
+      if (nextProject?.id) localStorage.setItem("sitewatch_active_project_id", nextProject.id);
+      else localStorage.removeItem("sitewatch_active_project_id");
+    }
+  };
+
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
     setSession(null);
     setProjects([]);
     setActiveProject(null);
+    setResolvingErrorId(null);
+    setLoadingMoreErrors(false);
+    setHasMoreErrors(false);
+    setErrors([]);
+    setAnalytics(EMPTY_ANALYTICS);
+    setTrend({});
+    setCommonErrors([]);
+    setAlerts([]);
+    setMessage("");
+    setProjectsError("");
     localStorage.removeItem("sitewatch_active_project_id");
+    await supabase.auth.signOut();
   };
 
   const loadErrors = useCallback(async (showLoading = false) => {
+    const requestId = ++loadRequestId.current;
+    if (!activeProject?.api_key) {
+      setErrors([]);
+      setHasMoreErrors(false);
+      setAnalytics(EMPTY_ANALYTICS);
+      setTrend({});
+      setCommonErrors([]);
+      setAlerts([]);
+      setMessage("");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     if (showLoading) {
       setLoading(true);
+      setErrors([]);
+      setHasMoreErrors(false);
+      setAnalytics(EMPTY_ANALYTICS);
+      setTrend({});
+      setCommonErrors([]);
+      setAlerts([]);
     }
 
     setRefreshing(true);
     setMessage("");
 
-    const activeKey = activeProject?.api_key || API_KEY;
+    const activeKey = activeProject.api_key;
     const headers = {
       "x-sitewatch-key": activeKey,
     };
 
     try {
       const responses = await Promise.all([
-        fetch(`${API_BASE}/errors`, { headers }),
+        fetch(`${API_BASE}/errors?limit=100&offset=0`, { headers }),
         fetch(`${API_BASE}/analytics?range=${range}`, { headers }),
         fetch(`${API_BASE}/analytics/trend?range=${range}`, {
           headers,
@@ -135,6 +221,8 @@ function App() {
         }),
         fetch(`${API_BASE}/alerts`, { headers }),
       ]);
+
+      if (requestId !== loadRequestId.current) return;
 
       const labels = [
         "errors",
@@ -170,9 +258,17 @@ function App() {
         alertsData,
       ] = await Promise.all(responses.map((response) => response.json()));
 
-      setErrors(
-        Array.isArray(errorsData.errors) ? errorsData.errors : []
-      );
+      if (requestId !== loadRequestId.current) return;
+
+      const firstErrorBatch = Array.isArray(errorsData.errors) ? errorsData.errors : [];
+      const loadedErrorCount = errorsRef.current.length;
+      setErrors((previous) => {
+        if (showLoading || previous.length <= firstErrorBatch.length) return firstErrorBatch;
+        const firstPageIds = new Set(firstErrorBatch.map((item) => item.id));
+        const olderItems = previous.slice(firstErrorBatch.length).filter((item) => !firstPageIds.has(item.id));
+        return [...firstErrorBatch, ...olderItems];
+      });
+      setHasMoreErrors(firstErrorBatch.length === 100 || loadedErrorCount > firstErrorBatch.length);
 
       setAnalytics({
         ...EMPTY_ANALYTICS,
@@ -189,15 +285,45 @@ function App() {
         Array.isArray(alertsData.alerts) ? alertsData.alerts : []
       );
     } catch (error) {
+      if (requestId !== loadRequestId.current) return;
       setMessage(
         error.message ||
           "Something went wrong while loading SiteWatch."
       );
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (requestId === loadRequestId.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [range, activeProject]);
+
+  const loadMoreErrors = async () => {
+    if (!activeProject?.api_key || loadingMoreErrors || !hasMoreErrors) return;
+    const projectId = activeProject.id;
+    const offset = errors.length;
+    setLoadingMoreErrors(true);
+    try {
+      const response = await fetch(`${API_BASE}/errors?limit=100&offset=${offset}`, {
+        headers: { "x-sitewatch-key": activeProject.api_key },
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Could not load older errors.");
+      if (activeProjectIdRef.current !== projectId) return;
+      const batch = Array.isArray(result.errors) ? result.errors : [];
+      setErrors((previous) => {
+        const existingIds = new Set(previous.map((item) => item.id));
+        return [...previous, ...batch.filter((item) => !existingIds.has(item.id))];
+      });
+      setHasMoreErrors(batch.length === 100);
+    } catch (error) {
+      if (activeProjectIdRef.current === projectId) {
+        setMessage(error.message || "Could not load older errors.");
+      }
+    } finally {
+      if (activeProjectIdRef.current === projectId) setLoadingMoreErrors(false);
+    }
+  };
 
   useEffect(() => {
     loadErrors(true);
@@ -214,6 +340,7 @@ function App() {
 
   const markAlertAsRead = async (id) => {
     if (readingAlerts.includes(id)) return;
+    if (!activeProject?.api_key) return;
 
     setReadingAlerts((previous) => [...previous, id]);
     setMessage("");
@@ -224,7 +351,7 @@ function App() {
         {
           method: "PATCH",
           headers: {
-            "x-sitewatch-key": API_KEY,
+            "x-sitewatch-key": activeProject.api_key,
           },
         }
       );
@@ -244,6 +371,35 @@ function App() {
       setReadingAlerts((previous) =>
         previous.filter((alertId) => alertId !== id)
       );
+    }
+  };
+
+  const setErrorResolved = async (errorRecord, resolved) => {
+    if (!activeProject?.api_key) throw new Error("Select a site before updating an error.");
+    const requestProjectId = activeProject.id;
+    setResolvingErrorId(errorRecord.id);
+    setMessage("");
+    try {
+      const response = await fetch(`${API_BASE}/errors/${errorRecord.id}/resolution`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-sitewatch-key": activeProject.api_key,
+        },
+        body: JSON.stringify({ resolved }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Could not update this error.");
+      if (activeProjectIdRef.current !== requestProjectId) return result.error;
+      setErrors((previous) => previous.map((item) => item.id === errorRecord.id ? result.error : item));
+      return result.error;
+    } catch (error) {
+      if (activeProjectIdRef.current === requestProjectId) {
+        setMessage(error.message || "Could not update this error.");
+      }
+      throw error;
+    } finally {
+      if (activeProjectIdRef.current === requestProjectId) setResolvingErrorId(null);
     }
   };
 
@@ -298,6 +454,13 @@ function App() {
             message={message}
             setMessage={setMessage}
             unreadAlerts={unreadAlerts}
+            projects={projects}
+            projectsLoading={projectsLoading}
+            projectsError={projectsError}
+            onRetryProjects={() => setProjectReload((value) => value + 1)}
+            onNavigate={setCurrentPage}
+            session={session}
+            activeProject={activeProject}
           />
         );
 
@@ -305,11 +468,17 @@ function App() {
         return (
           <SitesPage
             errors={errors}
-            session={session}
             projects={projects}
             activeProject={activeProject}
             setActiveProject={handleSelectProject}
             onProjectCreated={handleProjectCreated}
+            onProjectDeleted={handleProjectDeleted}
+            projectsLoading={projectsLoading}
+            projectsError={projectsError}
+            onRetryProjects={() => setProjectReload((value) => value + 1)}
+            message={message}
+            session={session}
+            onNavigate={setCurrentPage}
             onRefresh={loadErrors}
           />
         );
@@ -326,6 +495,14 @@ function App() {
             range={range}
             setRange={setRange}
             loading={loading}
+            message={message}
+            setMessage={setMessage}
+            onSetErrorResolved={setErrorResolved}
+            resolvingErrorId={resolvingErrorId}
+            onLoadMore={loadMoreErrors}
+            hasMoreErrors={hasMoreErrors}
+            loadingMoreErrors={loadingMoreErrors}
+            localProjectRoot={activeProject?.id ? localStorage.getItem(`sitewatch_vscode_project_root_${activeProject.id}`) || "" : ""}
           />
         );
 
@@ -337,6 +514,8 @@ function App() {
             onMarkAllAsRead={markAllAlertsAsRead}
             readingAlerts={readingAlerts}
             unreadAlerts={unreadAlerts}
+            message={message}
+            setMessage={setMessage}
           />
         );
 
@@ -346,6 +525,7 @@ function App() {
             session={session}
             onNavigate={setCurrentPage}
             onSignOut={handleSignOut}
+            activeProject={activeProject}
           />
         );
 
@@ -365,6 +545,13 @@ function App() {
             message={message}
             setMessage={setMessage}
             unreadAlerts={unreadAlerts}
+            projects={projects}
+            projectsLoading={projectsLoading}
+            projectsError={projectsError}
+            onRetryProjects={() => setProjectReload((value) => value + 1)}
+            onNavigate={setCurrentPage}
+            session={session}
+            activeProject={activeProject}
           />
         );
     }

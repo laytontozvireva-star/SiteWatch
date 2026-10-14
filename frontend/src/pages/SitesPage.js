@@ -1,13 +1,5 @@
 import { useState, useMemo } from "react";
-import {
-  Plus,
-  Play,
-  Copy,
-  Check,
-  CheckCircle2,
-  X,
-  AlertTriangle,
-} from "lucide-react";
+import { Plus, Play, Copy, Check, CheckCircle2, X, AlertTriangle } from "lucide-react";
 import AddWebsite from "../AddWebsite";
 
 const API_BASE = (() => {
@@ -57,20 +49,26 @@ export default function SitesPage({
   activeProject,
   setActiveProject,
   onProjectCreated,
+  onProjectDeleted,
+  projectsLoading = false,
+  projectsError = "",
+  onRetryProjects,
+  message = "",
+  session,
+  onNavigate,
   onRefresh,
 }) {
   const projects = propProjects;
   const [showAddForm, setShowAddForm] = useState(false);
-  const [runningCheck, setRunningCheck] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
-  const [checkResult, setCheckResult] = useState(null);
-  const [range, setRange] = useState("30d");
+  const [removingSite, setRemovingSite] = useState(false);
+  const [removeError, setRemoveError] = useState("");
 
   const current = useMemo(() => {
-    return activeProject || projects[0] || null;
-  }, [activeProject, projects]);
+    return activeProject || null;
+  }, [activeProject]);
 
   const domain = useMemo(() => {
     if (!current?.website_url) return current?.name || "example.com";
@@ -82,23 +80,55 @@ export default function SitesPage({
   }, [current]);
 
   // Errors for this specific project
-  const siteErrors = useMemo(() => {
-    if (!current) return [];
-    return errors.filter((e) => {
-      if (current.website_url && e.url && e.url.includes(domain)) return true;
-      return true; // Show errors logged under this project key
-    });
-  }, [errors, current, domain]);
+  // The API key request is already scoped to this project by the backend.
+  const siteErrors = errors;
+
+  const handleRemoveSite = async () => {
+    if (!current || !onProjectDeleted) return;
+    const confirmed = window.confirm(
+      `Remove “${current.name || domain}”? This removes the site from your account and may also remove its monitoring data.`
+    );
+    if (!confirmed) return;
+
+    setRemovingSite(true);
+    setRemoveError("");
+    try {
+      await onProjectDeleted(current);
+    } catch (error) {
+      setRemoveError(error.message || "Could not remove this site.");
+    } finally {
+      setRemovingSite(false);
+    }
+  };
 
   if (!current) {
     return (
       <div className="px-6 py-8 lg:px-10 max-w-7xl">
         <div className="mb-6">
           <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Sites</h1>
-          <p className="mt-1 text-sm text-gray-500">Register a site to start monitoring it.</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {projectsLoading ? "Loading your sites…" : "Register a site to start monitoring it."}
+          </p>
         </div>
-        {showAddForm ? (
+        {projectsError && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p className="font-semibold">We couldn’t load your sites.</p>
+            <p className="mt-1">{projectsError}</p>
+            <button onClick={onRetryProjects} className="mt-3 font-semibold underline">Try again</button>
+          </div>
+        )}
+        {projectsLoading ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 text-sm text-gray-500">Loading sites…</div>
+        ) : !session ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-6">
+            <p className="text-sm text-gray-600">Sign in to register and manage monitoring sites.</p>
+            <button onClick={() => onNavigate?.("login")} className="mt-4 rounded-xl bg-[#2d6a4f] px-4 py-2.5 text-sm font-semibold text-white">Sign in</button>
+          </div>
+        ) : projectsError ? null : showAddForm ? (
           <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+            <button onClick={() => setShowAddForm(false)} className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-900">
+              <X className="h-4 w-4" /> Cancel
+            </button>
             <AddWebsite
               onProjectCreated={(newProject) => {
                 onProjectCreated?.(newProject);
@@ -118,38 +148,6 @@ export default function SitesPage({
       </div>
     );
   }
-
-  // Run ping / check
-  const handleRunCheck = async () => {
-    setRunningCheck(true);
-    setCheckResult(null);
-
-    const startTime = Date.now();
-    try {
-      // Simulate or ping url
-      if (current.website_url && current.website_url.startsWith("http")) {
-        try {
-          await fetch(current.website_url, { mode: "no-cors" });
-        } catch {
-          // CORS opaque response or unreachable
-        }
-      }
-      const responseTime = Math.max(45, Date.now() - startTime + Math.floor(Math.random() * 80));
-      setCheckResult({
-        status: "operational",
-        responseTime: `${responseTime} ms`,
-        time: "Just now",
-      });
-    } catch {
-      setCheckResult({
-        status: "degraded",
-        responseTime: "Timeout",
-        time: "Just now",
-      });
-    } finally {
-      setRunningCheck(false);
-    }
-  };
 
   // Send a real test error to verify connection
   const handleSendTestError = async () => {
@@ -225,14 +223,8 @@ export default function SitesPage({
             <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
               {current.name || domain}
             </h1>
-            <span
-              className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-bold ${
-                siteErrors.length > 0
-                  ? "bg-red-100 text-red-800"
-                  : "bg-green-100 text-green-800"
-              }`}
-            >
-              {siteErrors.length > 0 ? "Degraded" : "Operational"}
+            <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-bold ${siteErrors.length > 0 ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
+              {siteErrors.length > 0 ? "Errors detected" : "No recent errors"}
             </span>
           </div>
         </div>
@@ -256,25 +248,6 @@ export default function SitesPage({
             </select>
           )}
 
-          <select
-            value={range}
-            onChange={(e) => setRange(e.target.value)}
-            className="rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm outline-none"
-          >
-            <option value="24h">Last 24 hours</option>
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-          </select>
-
-          <button
-            onClick={handleRunCheck}
-            disabled={runningCheck}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#2d6a4f] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#245740] disabled:opacity-50"
-          >
-            <Play className={`w-3.5 h-3.5 ${runningCheck ? "animate-spin" : ""}`} />
-            {runningCheck ? "Checking..." : "Run check now"}
-          </button>
-
           <button
             onClick={() => setShowAddForm(!showAddForm)}
             className="inline-flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50"
@@ -282,8 +255,23 @@ export default function SitesPage({
             {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {showAddForm ? "Close" : "Add site"}
           </button>
+          <button
+            onClick={handleRemoveSite}
+            disabled={removingSite}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-sm font-medium text-red-700 shadow-sm transition hover:bg-red-50 disabled:opacity-50"
+          >
+            {removingSite ? "Removing…" : "Remove site"}
+          </button>
         </div>
       </div>
+
+      {(projectsError || removeError || message) && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-semibold">{removeError ? "Could not remove this site." : projectsError ? "We couldn’t refresh your sites." : "Something needs attention."}</p>
+          <p className="mt-1">{removeError || projectsError || message}</p>
+          {projectsError && <button onClick={onRetryProjects} className="mt-3 font-semibold underline">Try again</button>}
+        </div>
+      )}
 
       {/* Add Website Form Drawer */}
       {showAddForm && (
@@ -298,96 +286,8 @@ export default function SitesPage({
         </div>
       )}
 
-      {/* 4 Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold tracking-wider uppercase text-gray-500">
-            UPTIME (30D)
-          </p>
-          <p className="mt-2 text-3xl font-extrabold text-gray-900">
-            {siteErrors.length > 5 ? "94.1%" : siteErrors.length > 0 ? "98.7%" : "100.0%"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold tracking-wider uppercase text-gray-500">
-            AVG RESPONSE
-          </p>
-          <p className="mt-2 text-3xl font-extrabold text-gray-900">
-            {checkResult?.responseTime || "184 ms"}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold tracking-wider uppercase text-gray-500">
-            ERRORS ({range.toUpperCase()})
-          </p>
-          <p className="mt-2 text-3xl font-extrabold text-gray-900">
-            {siteErrors.length}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-bold tracking-wider uppercase text-gray-500">
-            LAST CHECK
-          </p>
-          <p className="mt-2 text-3xl font-extrabold text-gray-900">
-            {checkResult?.time || "Just now"}
-          </p>
-        </div>
-      </div>
-
-      {/* 30-day Uptime Blocks Card */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">
-          Uptime, last 30 days
-        </h2>
-
-        {/* 30 daily uptime status bars side by side */}
-        <div className="flex items-center gap-1 sm:gap-1.5 py-2 w-full">
-          {Array.from({ length: 30 }).map((_, i) => {
-            let color = "bg-green-500";
-            let status = "Operational";
-            if (siteErrors.length > 0 && (i === 12 || i === 28)) {
-              color = "bg-amber-500";
-              status = "Degraded";
-            } else if (siteErrors.length > 5 && (i === 19 || i === 29)) {
-              color = "bg-red-500";
-              status = "Downtime";
-            }
-
-            const dayNum = 30 - i;
-            const dayLabel = dayNum === 1 ? "Today" : `${dayNum} days ago`;
-
-            return (
-              <div
-                key={i}
-                className={`flex-1 h-9 rounded-sm sm:rounded-md ${color} transition-all hover:opacity-80 cursor-pointer`}
-                title={`${dayLabel}: ${status}`}
-              />
-            );
-          })}
-        </div>
-
-        <div className="flex items-center justify-between text-xs text-gray-400 mt-3 pt-2 border-t border-gray-100">
-          <span>30 days ago</span>
-          <span>Today</span>
-        </div>
-
-        <div className="flex items-center gap-6 text-xs text-gray-500 mt-3 font-medium">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
-            <span>Green: up</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-            <span>Amber: degraded</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <span>Red: down</span>
-          </div>
-        </div>
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
+        SiteWatch is collecting reported errors for this site. Uptime and response-time monitoring are not available yet.
       </div>
 
       {/* Recent Errors Section */}

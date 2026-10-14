@@ -24,6 +24,13 @@ export default function OverviewPage({
   message,
   setMessage,
   unreadAlerts,
+  projects = [],
+  projectsLoading = false,
+  projectsError = "",
+  onRetryProjects,
+  onNavigate,
+  session,
+  activeProject,
 }) {
   const trendEntries = Object.entries(trend || {});
   const maxErrors = Math.max(
@@ -32,9 +39,9 @@ export default function OverviewPage({
   );
 
   const stats = [
-    { label: "SITES MONITORED", value: errors.length > 0 ? new Set(errors.map(e => e.url).filter(Boolean)).size : 0, color: "text-gray-900" },
+    { label: "SITES MONITORED", value: projects.length, color: "text-gray-900" },
     { label: "SITES UP", value: "-", color: "text-green-600" },
-    { label: "ERRORS (7D)", value: analytics.totalErrors, color: "text-gray-900" },
+    { label: `ERRORS (${range.toUpperCase()})`, value: analytics.totalErrors, color: "text-gray-900" },
     { label: "OPEN ALERTS", value: unreadAlerts, color: "text-orange-600" },
   ];
 
@@ -82,6 +89,34 @@ export default function OverviewPage({
           <button onClick={() => setMessage("")} className="text-red-200 hover:text-white">
             <X className="h-4 w-4" />
           </button>
+        </div>
+      )}
+
+      {projectsError && (
+        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          <p className="font-semibold">We couldn’t load your sites.</p>
+          <p className="mt-1">{projectsError}</p>
+          <button onClick={onRetryProjects} className="mt-3 font-semibold underline">Try again</button>
+        </div>
+      )}
+
+      {!projectsLoading && session && !projectsError && projects.length === 0 && (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-gray-900">Add your first site to get started</p>
+            <p className="mt-1 text-sm text-gray-600">Register a site to get its monitoring key and SDK setup instructions.</p>
+          </div>
+          <button onClick={() => onNavigate?.("sites")} className="shrink-0 rounded-xl bg-[#2d6a4f] px-4 py-2.5 text-sm font-semibold text-white">Register a site</button>
+        </div>
+      )}
+
+      {!loading && !session && !activeProject && (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-gray-900">Sign in to manage monitoring sites</p>
+            <p className="mt-1 text-sm text-gray-600">Your dashboard data is tied to the project you select.</p>
+          </div>
+          <button onClick={() => onNavigate?.("login")} className="shrink-0 rounded-xl bg-[#2d6a4f] px-4 py-2.5 text-sm font-semibold text-white">Sign in</button>
         </div>
       )}
 
