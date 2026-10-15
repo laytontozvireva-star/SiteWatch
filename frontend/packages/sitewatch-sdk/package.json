@@ -1,0 +1,21 @@
+{
+  "name": "@tozvi/sitewatch",
+  "version": "0.1.0",
+  "description": "Browser error monitoring SDK for SiteWatch",
+  "type": "module",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

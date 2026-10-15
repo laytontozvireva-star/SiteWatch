@@ -64,6 +64,7 @@ export default function SitesPage({
   const [framework, setFramework] = useState("html");
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
+  const [copiedInstall, setCopiedInstall] = useState(false);
   const [removingSite, setRemovingSite] = useState(false);
   const [removeError, setRemoveError] = useState("");
 
@@ -178,7 +179,9 @@ export default function SitesPage({
     }
     return "http://localhost:5000";
   })();
-  const sdkSnippet = framework === "next"
+  const sdkSnippet = framework === "npm"
+    ? `import { initSiteWatch } from "@tozvi/sitewatch";\n\ninitSiteWatch({\n  apiKey: "${current.api_key || "sw_your_key_here"}",\n  endpoint: "${backendBase}/api/errors",\n});`
+    : framework === "next"
     ? `import Script from "next/script";\n\n<Script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}"\n  strategy="afterInteractive"\n/>`
     : `<script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}">\n</script>`;
 
@@ -187,6 +190,9 @@ export default function SitesPage({
     if (type === "key") {
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 2000);
+    } else if (type === "install") {
+      setCopiedInstall(true);
+      setTimeout(() => setCopiedInstall(false), 2000);
     } else {
       setCopiedScript(true);
       setTimeout(() => setCopiedScript(false), 2000);
@@ -364,18 +370,33 @@ export default function SitesPage({
               <option value="html">HTML</option>
               <option value="react">React, Vite, or Create React App</option>
               <option value="next">Next.js</option>
+              <option value="npm">npm package (React, Vite, or Next.js)</option>
             </select>
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">2. Add the code to your site</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{framework === "npm" ? "2. Install and initialize SiteWatch" : "2. Add the code to your site"}</p>
             <p className="mt-1 text-xs text-gray-600">
-              {framework === "next"
+              {framework === "npm"
+                ? "Run the install command in your project, then initialize SiteWatch once in your app entry point (for example, src/main.jsx or app/layout.js)."
+                : framework === "next"
                 ? "In app/layout.js, import next/script and place this component inside the page body."
                 : framework === "react"
                   ? "In index.html (or public/index.html for Create React App), just before </body>."
                   : "In your main HTML file, just before </body>."}
             </p>
+            {framework === "npm" && (
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-500">Install command</label>
+                  <button onClick={() => copyText("npm install @tozvi/sitewatch", "install")} className="inline-flex items-center gap-1 text-xs font-medium text-[#2d6a4f] hover:underline">
+                    {copiedInstall ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {copiedInstall ? "Copied" : "Copy command"}
+                  </button>
+                </div>
+                <pre className="rounded-xl border border-gray-200 bg-gray-900 p-3.5 font-mono text-xs text-emerald-400 overflow-x-auto">npm install @tozvi/sitewatch</pre>
+              </div>
+            )}
             <div className="mt-2 flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-gray-500">Monitoring code</label>
               <button

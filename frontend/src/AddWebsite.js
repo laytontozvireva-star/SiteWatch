@@ -19,6 +19,7 @@ export default function AddWebsite({ onProjectCreated }) {
   const [createdProject, setCreatedProject] = useState(null);
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedSnippet, setCopiedSnippet] = useState(false);
+  const [copiedInstall, setCopiedInstall] = useState(false);
   const [framework, setFramework] = useState("html");
 
   async function handleSubmit(event) {
@@ -88,10 +89,19 @@ export default function AddWebsite({ onProjectCreated }) {
   const getSnippet = () => {
     if (!createdProject?.api_key) return;
     const host = API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000");
+    if (framework === "npm") {
+      return `import { initSiteWatch } from "@tozvi/sitewatch";\n\ninitSiteWatch({\n  apiKey: "${createdProject.api_key}",\n  endpoint: "${host}/api/errors",\n});`;
+    }
     if (framework === "next") {
       return `import Script from "next/script";\n\n<Script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}"\n  strategy="afterInteractive"\n/>`;
     }
     return `<script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}">\n</script>`;
+  };
+
+  const copyInstall = () => {
+    navigator.clipboard.writeText("npm install @tozvi/sitewatch");
+    setCopiedInstall(true);
+    setTimeout(() => setCopiedInstall(false), 2000);
   };
 
   const copySnippet = () => {
@@ -190,9 +200,12 @@ export default function AddWebsite({ onProjectCreated }) {
                   <option value="html">HTML</option>
                   <option value="react">React, Vite, or Create React App</option>
                   <option value="next">Next.js</option>
+                  <option value="npm">npm package (React, Vite, or Next.js)</option>
                 </select>
                 <p className="ml-6 mt-1 text-xs text-gray-500">
-                  {framework === "next"
+                  {framework === "npm"
+                    ? "Run the install command in your project, then initialize SiteWatch once in your app entry point (for example, src/main.jsx or app/layout.js)."
+                    : framework === "next"
                     ? "In app/layout.js, import next/script and place the code inside the page body."
                     : framework === "react"
                       ? "In index.html (or public/index.html for Create React App), just before </body>."
@@ -201,6 +214,19 @@ export default function AddWebsite({ onProjectCreated }) {
               </li>
               <li><span className="mr-2 font-bold text-[#2d6a4f]">3.</span>Deploy your website. New browser errors will then appear here.</li>
             </ol>
+
+            {framework === "npm" && (
+              <div className="mt-4">
+                <p className="text-xs font-semibold text-gray-600">Install the package</p>
+                <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-gray-900 px-3 py-2 font-mono text-xs text-emerald-400">
+                  <code>npm install @tozvi/sitewatch</code>
+                  <button type="button" onClick={copyInstall} className="inline-flex shrink-0 items-center gap-1 text-xs font-sans font-semibold text-white hover:underline">
+                    {copiedInstall ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {copiedInstall ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="mt-4 flex items-center justify-between gap-2">
               <p className="text-xs font-semibold text-gray-600">Monitoring code</p>
