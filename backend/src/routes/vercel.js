@@ -78,6 +78,15 @@ router.get("/integrations/vercel/callback", async (req, res, next) => {
     if (!configured()) return unavailable(res);
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const code = typeof req.query.code === "string" ? req.query.code : "";
+    const providerError = typeof req.query.error === "string" ? req.query.error : "";
+    const providerDescription = typeof req.query.error_description === "string" ? req.query.error_description : "";
+    if (providerError) {
+      return res.status(400).json({
+        success: false,
+        code: "VERCEL_OAUTH_DENIED",
+        message: providerDescription || `Vercel OAuth returned: ${providerError}.`,
+      });
+    }
     if (!state || !code) return res.status(400).json({ success: false, code: "OAUTH_CALLBACK_INVALID", message: "Missing OAuth code or state." });
     const now = new Date().toISOString();
     const { data: oauthState, error: stateError } = await supabase
