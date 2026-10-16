@@ -6,7 +6,7 @@ const { supabase } = require("../services/supabase");
 const { requireUser } = require("../middleware/auth");
 const validate = require("../middleware/validate");
 const { vercelIntegrationLimiter, vercelWebhookLimiter } = require("../middleware/rateLimiter");
-const { createState, hashState, encryptToken, verifyWebhookSignature, isDuplicateWebhookError } = require("../services/vercelCrypto");
+const { createState, createCodeVerifier, createCodeChallenge, hashState, encryptToken, decryptToken, verifyWebhookSignature, isDuplicateWebhookError } = require("../services/vercelCrypto");
 const { configured, getTeams, getProjects, getProject, getDeployments, deploymentUrl } = require("../services/vercelService");
 const logger = require("../utils/logger");
 
@@ -48,9 +48,11 @@ router.get("/integrations/vercel/connect", async (req, res, next) => {
   try {
     if (!configured()) return unavailable(res);
     const state = createState();
+    const codeVerifier = createCodeVerifier();
     const { error } = await supabase.from("vercel_oauth_states").insert({
       owner_id: req.authUser.id,
       state_hash: hashState(state),
+      code_verifier_encrypted: encryptToken(codeVerifier),
       expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
     if (error) throw error;
@@ -59,8 +61,11 @@ router.get("/integrations/vercel/connect", async (req, res, next) => {
     authorize.searchParams.set("redirect_uri", config.vercel.redirectUri);
     authorize.searchParams.set("response_type", "code");
     authorize.searchParams.set("state", state);
-    // API access is constrained by the scopes selected in the Vercel integration
-    // configuration (Projects and Deployments: Read; webhooks configured there).
+    authorize.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
+    authorize.searchParams.set("code_challenge_method", "S256");
+    // API access is constrained by the scopes selected in the Vercel application
+    // configuration. Request only identity/offline access from the OAuth server.
+    authorize.searchParams.set("scope", "openid profile offline_access");
     return res.json({ success: true, authorizationUrl: authorize.toString(), expiresInSeconds: 600 });
   } catch (error) { next(error); }
 });
@@ -77,14 +82,18 @@ router.get("/integrations/vercel/callback", async (req, res, next) => {
     const now = new Date().toISOString();
     const { data: oauthState, error: stateError } = await supabase
       .from("vercel_oauth_states").update({ used_at: now }).eq("state_hash", hashState(state)).is("used_at", null).gt("expires_at", now)
-      .select("owner_id").maybeSingle();
+      .select("owner_id, code_verifier_encrypted").maybeSingle();
     if (stateError) throw stateError;
     if (!oauthState) return res.status(400).json({ success: false, code: "OAUTH_STATE_INVALID", message: "OAuth state is invalid, expired, or already used." });
 
+    let codeVerifier;
+    try { codeVerifier = decryptToken(oauthState.code_verifier_encrypted); } catch {
+      return res.status(400).json({ success: false, code: "OAUTH_STATE_INVALID", message: "OAuth state could not be verified. Start the Vercel connection again." });
+    }
     const tokenResponse = await fetch("https://api.vercel.com/login/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-      body: new URLSearchParams({ client_id: config.vercel.clientId, client_secret: config.vercel.clientSecret, code, redirect_uri: config.vercel.redirectUri }),
+      body: new URLSearchParams({ grant_type: "authorization_code", client_id: config.vercel.clientId, client_secret: config.vercel.clientSecret, code, code_verifier: codeVerifier, redirect_uri: config.vercel.redirectUri }),
     });
     const token = await tokenResponse.json().catch(() => ({}));
     if (!tokenResponse.ok || !token.access_token) return res.status(400).json({ success: false, code: "OAUTH_TOKEN_EXCHANGE_FAILED", message: "Vercel did not authorize this connection." });

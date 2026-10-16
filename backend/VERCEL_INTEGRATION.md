@@ -1,6 +1,7 @@
 # Vercel integration setup
 
-1. Run `VERCEL_INTEGRATION_MIGRATION.sql` in Supabase before deploying.
+1. Run `VERCEL_INTEGRATION_MIGRATION.sql` in Supabase before deploying. If you
+   already ran that migration, also run `VERCEL_OAUTH_PKCE_MIGRATION.sql`.
 2. Create a Vercel OAuth/Integration application. Configure its callback as
    `https://<api-host>/api/integrations/vercel/callback` and only grant the
    read permissions needed for Projects and Deployments. Configure deployment
@@ -16,7 +17,8 @@
 All `/api/integrations/vercel/*` endpoints except the provider callback require
 the normal `Authorization: Bearer <Supabase access token>` header. `connect`
 returns `{ authorizationUrl }`; redirect the browser to it. The callback is
-secured by a single-use, 10-minute state bound to that authenticated user.
+secured by a single-use, 10-minute state bound to that authenticated user and
+an encrypted PKCE verifier.
 
 - `GET /status` returns `connected`, account display data, and expiry metadata.
 - `GET /teams`, `GET /projects?teamId=`, and `GET /projects/:id/deployments?teamId=` return Vercel data only after server-side ownership checks.

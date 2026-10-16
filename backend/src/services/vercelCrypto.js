@@ -34,6 +34,15 @@ function createState() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
+function createCodeVerifier() {
+  // RFC 7636 allows 43-128 URL-safe characters. 32 random bytes encode to 43.
+  return crypto.randomBytes(32).toString("base64url");
+}
+
+function createCodeChallenge(verifier) {
+  return crypto.createHash("sha256").update(verifier).digest("base64url");
+}
+
 function hashState(state) {
   return crypto.createHash("sha256").update(state).digest("hex");
 }
@@ -56,4 +65,4 @@ function isDuplicateWebhookError(error) {
   return error?.code === "23505";
 }
 
-module.exports = { encryptToken, decryptToken, createState, hashState, verifyWebhookSignature, isDuplicateWebhookError };
+module.exports = { encryptToken, decryptToken, createState, createCodeVerifier, createCodeChallenge, hashState, verifyWebhookSignature, isDuplicateWebhookError };

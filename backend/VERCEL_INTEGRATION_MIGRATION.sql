@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.vercel_oauth_states (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   state_hash text NOT NULL UNIQUE,
+  code_verifier_encrypted text NOT NULL,
   expires_at timestamptz NOT NULL,
   used_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()

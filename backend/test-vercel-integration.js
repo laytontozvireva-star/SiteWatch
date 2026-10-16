@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 process.env.VERCEL_TOKEN_ENCRYPTION_KEY = Buffer.alloc(32, 7).toString("base64");
 const {
-  encryptToken, decryptToken, createState, hashState, verifyWebhookSignature, isDuplicateWebhookError,
+  encryptToken, decryptToken, createState, createCodeVerifier, createCodeChallenge, hashState, verifyWebhookSignature, isDuplicateWebhookError,
 } = require("./src/services/vercelCrypto");
 const { isOwnedLink } = require("./src/services/vercelService");
 const crypto = require("crypto");
@@ -13,6 +13,13 @@ test("OAuth state is high entropy, bindable, and rejects a changed value", () =>
   assert.ok(state.length >= 40);
   assert.equal(hashState(state), hashState(state));
   assert.notEqual(hashState(state), hashState(`${state}changed`));
+});
+
+test("PKCE verifier creates a deterministic S256 challenge without exposing the verifier", () => {
+  const verifier = createCodeVerifier();
+  assert.ok(verifier.length >= 43);
+  assert.equal(createCodeChallenge(verifier), createCodeChallenge(verifier));
+  assert.notEqual(createCodeChallenge(verifier), createCodeChallenge(createCodeVerifier()));
 });
 
 test("Vercel tokens are encrypted at rest and can only be recovered with the configured key", () => {
