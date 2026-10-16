@@ -63,9 +63,9 @@ router.get("/integrations/vercel/connect", async (req, res, next) => {
     authorize.searchParams.set("state", state);
     authorize.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
     authorize.searchParams.set("code_challenge_method", "S256");
-    // API access is constrained by the scopes selected in the Vercel application
-    // configuration. Request only identity/offline access from the OAuth server.
-    authorize.searchParams.set("scope", "openid profile offline_access");
+    // Project/deployment permissions are selected in the Vercel Integration
+    // configuration. Do not request optional OIDC scopes: legacy integration
+    // clients reject them and Vercel grants the configured API access instead.
     return res.json({ success: true, authorizationUrl: authorize.toString(), expiresInSeconds: 600 });
   } catch (error) { next(error); }
 });
