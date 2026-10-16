@@ -8,8 +8,12 @@
   "exports": {
     ".": "./src/index.js"
   },
+  "bin": {
+    "sitewatch": "./bin/sitewatch.js"
+  },
   "files": [
     "src",
+    "bin",
     "README.md"
   ],
   "engines": {

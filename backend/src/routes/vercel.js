@@ -100,7 +100,7 @@ router.get("/integrations/vercel/callback", async (req, res, next) => {
       updated_at: new Date().toISOString(),
     }, { onConflict: "owner_id" });
     if (error) throw error;
-    return res.json({ success: true, connected: true, message: "Vercel account connected. You can close this window." });
+    return res.type("html").send(`<!doctype html><title>Vercel connected</title><body style="font-family:system-ui;display:grid;place-items:center;min-height:90vh;color:#172033"><main style="text-align:center"><h1>Vercel connected</h1><p>You can close this window and return to SiteWatch.</p></main><script>if(window.opener){window.opener.postMessage({type:'sitewatch:vercel-connected'},'*');window.close()}</script></body>`);
   } catch (error) { next(error); }
 });
 
@@ -109,6 +109,18 @@ router.get("/integrations/vercel/status", async (req, res, next) => {
     const connection = await connectionForUser(req.authUser.id);
     const authorizationRequired = Boolean(connection?.token_expires_at && new Date(connection.token_expires_at).getTime() <= Date.now());
     return res.json({ success: true, connected: Boolean(connection), authorizationRequired, connection: connection ? { username: connection.vercel_username, connectedAt: connection.created_at, expiresAt: connection.token_expires_at } : null });
+  } catch (error) { next(error); }
+});
+
+router.get("/integrations/vercel/links", async (req, res, next) => {
+  try {
+    const { data, error } = await supabase
+      .from("vercel_project_links")
+      .select("id, sitewatch_project_id, vercel_project_id, team_id, project_name, production_url, latest_deployment_status, latest_deployment_at, updated_at")
+      .eq("owner_id", req.authUser.id)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return res.json({ success: true, links: data || [] });
   } catch (error) { next(error); }
 });
 

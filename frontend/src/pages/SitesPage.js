@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { Plus, Play, Copy, Check, CheckCircle2, X, AlertTriangle } from "lucide-react";
+import { Plus, Play, Copy, Check, CheckCircle2, X, AlertTriangle, Send } from "lucide-react";
 import AddWebsite from "../AddWebsite";
+import VercelIntegrationCard from "../components/VercelIntegrationCard";
 
 const API_BASE = (() => {
   if (process.env.REACT_APP_API_URL) return process.env.REACT_APP_API_URL;
@@ -65,6 +66,8 @@ export default function SitesPage({
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [copiedInstall, setCopiedInstall] = useState(false);
+  const [copiedSetup, setCopiedSetup] = useState(false);
+  const [copiedDeveloper, setCopiedDeveloper] = useState(false);
   const [removingSite, setRemovingSite] = useState(false);
   const [removeError, setRemoveError] = useState("");
 
@@ -185,6 +188,9 @@ export default function SitesPage({
     ? `import Script from "next/script";\n\n<Script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}"\n  strategy="afterInteractive"\n/>`
     : `<script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}">\n</script>`;
 
+  const setupCommand = "npx sitewatch init";
+  const developerInstructions = `Please connect ${current.name || domain} to SiteWatch.\n\n1. In the project folder, run:\n   npm install @tozvi/sitewatch\n   ${setupCommand}\n\n2. When prompted, use this SiteWatch project key:\n   ${current.api_key || "sw_your_key_here"}\n\n3. Use this error endpoint:\n   ${backendBase}/api/errors\n\nThe setup tool detects the app entry file and adds the monitoring integration. Deploy the site afterwards.`;
+
   const copyText = (text, type) => {
     navigator.clipboard.writeText(text);
     if (type === "key") {
@@ -193,6 +199,12 @@ export default function SitesPage({
     } else if (type === "install") {
       setCopiedInstall(true);
       setTimeout(() => setCopiedInstall(false), 2000);
+    } else if (type === "setup") {
+      setCopiedSetup(true);
+      setTimeout(() => setCopiedSetup(false), 2000);
+    } else if (type === "developer") {
+      setCopiedDeveloper(true);
+      setTimeout(() => setCopiedDeveloper(false), 2000);
     } else {
       setCopiedScript(true);
       setTimeout(() => setCopiedScript(false), 2000);
@@ -264,6 +276,12 @@ export default function SitesPage({
         </div>
       )}
 
+      <VercelIntegrationCard
+        apiBase={API_BASE}
+        session={session}
+        activeProject={current}
+      />
+
       {/* Add Website Form Drawer */}
       {showAddForm && (
         <div className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -280,6 +298,28 @@ export default function SitesPage({
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 text-sm text-gray-600">
         SiteWatch is collecting reported errors for this site. Uptime and response-time monitoring are not available yet.
       </div>
+
+      {siteErrors.length === 0 && (
+        <section className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="flex gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-bold text-amber-950">Setup required</h2>
+              <p className="mt-1 text-sm text-amber-900">This site is not connected yet. Run the guided setup command in the website project, then deploy it. This message disappears after SiteWatch receives its first event.</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button onClick={() => copyText(setupCommand, "setup")} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800">
+                  {copiedSetup ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedSetup ? "Copied" : "Copy setup command"}
+                </button>
+                <button onClick={() => copyText(developerInstructions, "developer")} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100">
+                  {copiedDeveloper ? <Check className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                  {copiedDeveloper ? "Instructions copied" : "Copy instructions for developer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Recent Errors Section */}
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm mb-6">
@@ -378,7 +418,7 @@ export default function SitesPage({
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">{framework === "npm" ? "2. Install and initialize SiteWatch" : "2. Add the code to your site"}</p>
             <p className="mt-1 text-xs text-gray-600">
               {framework === "npm"
-                ? "Run the install command in your project, then initialize SiteWatch once in your app entry point (for example, src/main.jsx or app/layout.js)."
+                ? "Run these two commands in the project folder. The setup tool detects your app entry file and adds SiteWatch for you."
                 : framework === "next"
                 ? "In app/layout.js, import next/script and place this component inside the page body."
                 : framework === "react"
@@ -395,6 +435,14 @@ export default function SitesPage({
                   </button>
                 </div>
                 <pre className="rounded-xl border border-gray-200 bg-gray-900 p-3.5 font-mono text-xs text-emerald-400 overflow-x-auto">npm install @tozvi/sitewatch</pre>
+                <div className="mt-3 mb-1 flex items-center justify-between">
+                  <label className="text-xs font-semibold text-gray-500">Guided setup command</label>
+                  <button onClick={() => copyText(setupCommand, "setup")} className="inline-flex items-center gap-1 text-xs font-medium text-[#2d6a4f] hover:underline">
+                    {copiedSetup ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {copiedSetup ? "Copied" : "Copy command"}
+                  </button>
+                </div>
+                <pre className="rounded-xl border border-gray-200 bg-gray-900 p-3.5 font-mono text-xs text-emerald-400 overflow-x-auto">{setupCommand}</pre>
               </div>
             )}
             <div className="mt-2 flex items-center justify-between mb-1">
