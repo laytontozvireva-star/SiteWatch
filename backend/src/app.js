@@ -17,6 +17,7 @@ const projectsRoutes = require("./routes/projects");
 const errorsRoutes = require("./routes/errors");
 const analyticsRoutes = require("./routes/analytics");
 const alertsRoutes = require("./routes/alerts");
+const { router: vercelRoutes, webhookRouter: vercelWebhookRoutes } = require("./routes/vercel");
 
 const app = express();
 
@@ -47,17 +48,21 @@ app.use(
   })
 );
 
-// 3. Request body parsing with strict payload bounds
+// 3. Vercel needs the exact raw bytes to verify webhook signatures. This must
+// run before the general JSON parser and is intentionally only mounted at /api.
+app.use("/api/webhooks", express.raw({ type: "application/json", limit: config.payload.maxJsonSize }), vercelWebhookRoutes);
+
+// 4. Request body parsing with strict payload bounds
 app.use(express.json({ limit: config.payload.maxJsonSize }));
 app.use(express.urlencoded({ extended: true, limit: config.payload.maxJsonSize }));
 
 // Guard against malformed JSON payloads
 app.use(handleBodyParseError);
 
-// 4. Global API rate limiting
+// 5. Global API rate limiting
 app.use(globalLimiter);
 
-// 5. Lightweight request logger
+// 6. Lightweight request logger
 app.use((req, res, next) => {
   const start = Date.now();
   res.on("finish", () => {
@@ -69,7 +74,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 6. Root & Health endpoints
+// 7. Root & Health endpoints
 app.get("/", (req, res) => {
   res.json({
     success: true,
@@ -82,21 +87,22 @@ app.get("/", (req, res) => {
 app.use(healthRoutes);
 app.use("/api", healthRoutes);
 
-// 7. SDK distribution endpoint (/sdk/sitewatch.js)
+// 8. SDK distribution endpoint (/sdk/sitewatch.js)
 app.use("/sdk", sdkRoutes);
 
-// 8. Core API routes (mounted on both /api and root for maximum serverless gateway compatibility)
+// 9. Core API routes (mounted on both /api and root for maximum serverless gateway compatibility)
 app.use("/api", projectsRoutes);
 app.use("/api", errorsRoutes);
 app.use("/api", analyticsRoutes);
 app.use("/api", alertsRoutes);
+app.use("/api", vercelRoutes);
 
 app.use(projectsRoutes);
 app.use(errorsRoutes);
 app.use(analyticsRoutes);
 app.use(alertsRoutes);
 
-// 9. 404 handler for unmatched routes
+// 10. 404 handler for unmatched routes
 app.use(handleNotFound);
 
 // 10. Global error handler (must be last middleware)

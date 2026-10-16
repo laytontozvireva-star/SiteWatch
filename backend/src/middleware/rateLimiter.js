@@ -70,9 +70,29 @@ const createProjectLimiter = rateLimit({
   },
 });
 
+const vercelIntegrationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  validate: { keyGeneratorIpFallback: false },
+  keyGenerator: (req) => `vercel_user_${req.authUser?.id || req.ip || "unknown"}`,
+  message: { success: false, message: "Too many Vercel integration requests. Please try again shortly." },
+});
+
+const vercelWebhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 300,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { success: false, message: "Webhook rate limit exceeded." },
+});
+
 module.exports = {
   globalLimiter,
   errorIngestionLimiter,
   publicReportLimiter,
   createProjectLimiter,
+  vercelIntegrationLimiter,
+  vercelWebhookLimiter,
 };

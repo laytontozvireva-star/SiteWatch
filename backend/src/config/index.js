@@ -40,6 +40,15 @@ const config = {
     maxStackLen: 10000,
     maxBrowserLen: 500,
   },
+  vercel: {
+    clientId: process.env.VERCEL_OAUTH_CLIENT_ID || "",
+    clientSecret: process.env.VERCEL_OAUTH_CLIENT_SECRET || "",
+    redirectUri: process.env.VERCEL_OAUTH_REDIRECT_URI || "",
+    webhookSecret: process.env.VERCEL_WEBHOOK_SECRET || "",
+    // A base64 encoded, cryptographically-random 32 byte key. It is deliberately
+    // separate from the OAuth client secret so either can be rotated independently.
+    tokenEncryptionKey: process.env.VERCEL_TOKEN_ENCRYPTION_KEY || "",
+  },
 };
 
 module.exports = config;

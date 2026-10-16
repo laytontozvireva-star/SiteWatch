@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "node test-suite.js"
+    "test": "node test-suite.js",
+    "test:vercel": "node --test test-vercel-integration.js"
   },
   "keywords": [],
   "author": "",
