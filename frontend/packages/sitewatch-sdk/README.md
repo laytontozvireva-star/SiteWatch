@@ -1,11 +1,11 @@
-# @tozvi/sitewatch
+# @tozvi-labs/sitewatch
 
 SiteWatch browser error monitoring SDK.
 
 ## Install
 
 ```sh
-npm install @tozvi/sitewatch
+npm install @tozvi-labs/sitewatch
 ```
 
 ## Start monitoring
@@ -15,7 +15,7 @@ npm install @tozvi/sitewatch
 From your website project folder, run:
 
 ```sh
-npm install @tozvi/sitewatch
+npm install @tozvi-labs/sitewatch
 npx sitewatch init
 ```
 
@@ -26,7 +26,7 @@ existing SiteWatch configuration.
 ### Manual setup
 
 ```js
-import { initSiteWatch } from "@tozvi/sitewatch";
+import { initSiteWatch } from "@tozvi-labs/sitewatch";
 
 initSiteWatch({
   apiKey: "YOUR_SITEWATCH_PROJECT_KEY",

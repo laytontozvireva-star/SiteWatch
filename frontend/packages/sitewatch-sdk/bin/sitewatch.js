@@ -28,7 +28,7 @@ async function findEntryFile() {
 }
 
 function integration(apiKey, endpoint) {
-  return `import { initSiteWatch } from "@tozvi/sitewatch";\n\ninitSiteWatch({\n  apiKey: ${JSON.stringify(apiKey)},\n  endpoint: ${JSON.stringify(endpoint)},\n});\n\n`;
+  return `import { initSiteWatch } from "@tozvi-labs/sitewatch";\n\ninitSiteWatch({\n  apiKey: ${JSON.stringify(apiKey)},\n  endpoint: ${JSON.stringify(endpoint)},\n});\n\n`;
 }
 
 async function init() {
@@ -38,7 +38,7 @@ async function init() {
   if (!apiKey) throw new Error("A SiteWatch project key is required.");
   const endpoint = (await prompt("Error endpoint [https://sitewatch-sigma.vercel.app/api/errors]: ")) || "https://sitewatch-sigma.vercel.app/api/errors";
   const source = await readFile(entry, "utf8");
-  if (source.includes("initSiteWatch") || source.includes("@tozvi/sitewatch")) {
+  if (source.includes("initSiteWatch") || source.includes("@tozvi-labs/sitewatch")) {
     console.log(`SiteWatch is already configured in ${basename(entry)}. No changes made.`);
     return;
   }

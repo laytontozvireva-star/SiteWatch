@@ -1,6 +1,6 @@
 {
-  "name": "@tozvi/sitewatch",
-  "version": "0.1.0",
+  "name": "@tozvi-labs/sitewatch",
+  "version": "0.1.1",
   "description": "Browser error monitoring SDK for SiteWatch",
   "type": "module",
   "main": "./src/index.js",
@@ -9,7 +9,7 @@
     ".": "./src/index.js"
   },
   "bin": {
-    "sitewatch": "./bin/sitewatch.js"
+    "sitewatch": "bin/sitewatch.js"
   },
   "files": [
     "src",

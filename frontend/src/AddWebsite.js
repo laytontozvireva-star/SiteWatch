@@ -90,7 +90,7 @@ export default function AddWebsite({ onProjectCreated }) {
     if (!createdProject?.api_key) return;
     const host = API_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:5000");
     if (framework === "npm") {
-      return `import { initSiteWatch } from "@tozvi/sitewatch";\n\ninitSiteWatch({\n  apiKey: "${createdProject.api_key}",\n  endpoint: "${host}/api/errors",\n});`;
+      return `import { initSiteWatch } from "@tozvi-labs/sitewatch";\n\ninitSiteWatch({\n  apiKey: "${createdProject.api_key}",\n  endpoint: "${host}/api/errors",\n});`;
     }
     if (framework === "next") {
       return `import Script from "next/script";\n\n<Script\n  src="${host}/sdk/sitewatch.js"\n  data-site-key="${createdProject.api_key}"\n  strategy="afterInteractive"\n/>`;
@@ -99,7 +99,7 @@ export default function AddWebsite({ onProjectCreated }) {
   };
 
   const copyInstall = () => {
-    navigator.clipboard.writeText("npm install @tozvi/sitewatch");
+    navigator.clipboard.writeText("npm install @tozvi-labs/sitewatch");
     setCopiedInstall(true);
     setTimeout(() => setCopiedInstall(false), 2000);
   };
@@ -219,7 +219,7 @@ export default function AddWebsite({ onProjectCreated }) {
               <div className="mt-4">
                 <p className="text-xs font-semibold text-gray-600">Install the package</p>
                 <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-gray-900 px-3 py-2 font-mono text-xs text-emerald-400">
-                  <code>npm install @tozvi/sitewatch</code>
+                  <code>npm install @tozvi-labs/sitewatch</code>
                   <button type="button" onClick={copyInstall} className="inline-flex shrink-0 items-center gap-1 text-xs font-sans font-semibold text-white hover:underline">
                     {copiedInstall ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     {copiedInstall ? "Copied" : "Copy"}

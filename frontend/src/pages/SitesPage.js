@@ -183,13 +183,13 @@ export default function SitesPage({
     return "http://localhost:5000";
   })();
   const sdkSnippet = framework === "npm"
-    ? `import { initSiteWatch } from "@tozvi/sitewatch";\n\ninitSiteWatch({\n  apiKey: "${current.api_key || "sw_your_key_here"}",\n  endpoint: "${backendBase}/api/errors",\n});`
+    ? `import { initSiteWatch } from "@tozvi-labs/sitewatch";\n\ninitSiteWatch({\n  apiKey: "${current.api_key || "sw_your_key_here"}",\n  endpoint: "${backendBase}/api/errors",\n});`
     : framework === "next"
     ? `import Script from "next/script";\n\n<Script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}"\n  strategy="afterInteractive"\n/>`
     : `<script\n  src="${backendBase}/sdk/sitewatch.js"\n  data-site-key="${current.api_key || "sw_your_key_here"}">\n</script>`;
 
   const setupCommand = "npx sitewatch init";
-  const developerInstructions = `Please connect ${current.name || domain} to SiteWatch.\n\n1. In the project folder, run:\n   npm install @tozvi/sitewatch\n   ${setupCommand}\n\n2. When prompted, use this SiteWatch project key:\n   ${current.api_key || "sw_your_key_here"}\n\n3. Use this error endpoint:\n   ${backendBase}/api/errors\n\nThe setup tool detects the app entry file and adds the monitoring integration. Deploy the site afterwards.`;
+  const developerInstructions = `Please connect ${current.name || domain} to SiteWatch.\n\n1. In the project folder, run:\n   npm install @tozvi-labs/sitewatch\n   ${setupCommand}\n\n2. When prompted, use this SiteWatch project key:\n   ${current.api_key || "sw_your_key_here"}\n\n3. Use this error endpoint:\n   ${backendBase}/api/errors\n\nThe setup tool detects the app entry file and adds the monitoring integration. Deploy the site afterwards.`;
 
   const copyText = (text, type) => {
     navigator.clipboard.writeText(text);
@@ -429,12 +429,12 @@ export default function SitesPage({
               <div className="mt-3">
                 <div className="mb-1 flex items-center justify-between">
                   <label className="text-xs font-semibold text-gray-500">Install command</label>
-                  <button onClick={() => copyText("npm install @tozvi/sitewatch", "install")} className="inline-flex items-center gap-1 text-xs font-medium text-[#2d6a4f] hover:underline">
+                  <button onClick={() => copyText("npm install @tozvi-labs/sitewatch", "install")} className="inline-flex items-center gap-1 text-xs font-medium text-[#2d6a4f] hover:underline">
                     {copiedInstall ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     {copiedInstall ? "Copied" : "Copy command"}
                   </button>
                 </div>
-                <pre className="rounded-xl border border-gray-200 bg-gray-900 p-3.5 font-mono text-xs text-emerald-400 overflow-x-auto">npm install @tozvi/sitewatch</pre>
+                <pre className="rounded-xl border border-gray-200 bg-gray-900 p-3.5 font-mono text-xs text-emerald-400 overflow-x-auto">npm install @tozvi-labs/sitewatch</pre>
                 <div className="mt-3 mb-1 flex items-center justify-between">
                   <label className="text-xs font-semibold text-gray-500">Guided setup command</label>
                   <button onClick={() => copyText(setupCommand, "setup")} className="inline-flex items-center gap-1 text-xs font-medium text-[#2d6a4f] hover:underline">
