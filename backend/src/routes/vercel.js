@@ -106,9 +106,30 @@ router.get("/integrations/vercel/callback", async (req, res, next) => {
     });
     const token = await tokenResponse.json().catch(() => ({}));
     if (!tokenResponse.ok || !token.access_token) return res.status(400).json({ success: false, code: "OAUTH_TOKEN_EXCHANGE_FAILED", message: "Vercel did not authorize this connection." });
-    const userResponse = await fetch("https://api.vercel.com/v2/user", { headers: { Authorization: `Bearer ${token.access_token}` } });
-    const userPayload = await userResponse.json().catch(() => ({}));
-    if (!userResponse.ok) return res.status(400).json({ success: false, code: "OAUTH_USER_LOOKUP_FAILED", message: "Vercel authorization could not be verified." });
+    
+const userResponse = await fetch("https://api.vercel.com/v2/user", {
+  headers: {
+    Authorization: `Bearer ${token.access_token}`,
+    Accept: "application/json"
+  }
+});
+
+const userPayload = await userResponse.json().catch(() => ({}));
+
+if (!userResponse.ok) {
+  console.error("[Vercel OAuth] User lookup failed:", {
+    status: userResponse.status,
+    statusText: userResponse.statusText,
+    errorCode: userPayload.error?.code ?? userPayload.code ?? null
+  });
+
+  return res.status(400).json({
+    success: false,
+    code: "OAUTH_USER_LOOKUP_FAILED",
+    message: "Vercel authorization could not be verified."
+  });
+}
+
     const { error } = await supabase.from("vercel_connections").upsert({
       owner_id: oauthState.owner_id,
       vercel_user_id: userPayload.user?.id || userPayload.id || null,
