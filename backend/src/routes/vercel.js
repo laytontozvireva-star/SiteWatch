@@ -118,10 +118,11 @@ const userPayload = await userResponse.json().catch(() => ({}));
 
 if (!userResponse.ok) {
   console.error("[Vercel OAuth] User lookup failed:", {
-    status: userResponse.status,
-    statusText: userResponse.statusText,
-    errorCode: userPayload.error?.code ?? userPayload.code ?? null
-  });
+  status: userResponse.status,
+  statusText: userResponse.statusText,
+  errorCode: userPayload.error?.code ?? userPayload.code ?? null,
+  errorMessage: userPayload.error?.message ?? userPayload.message ?? null
+});
 
   return res.status(400).json({
     success: false,
