@@ -8,6 +8,13 @@ const validate = require("../middleware/validate");
 const { vercelIntegrationLimiter, vercelWebhookLimiter } = require("../middleware/rateLimiter");
 const { createState, createCodeVerifier, createCodeChallenge, hashState, encryptToken, decryptToken, verifyWebhookSignature, isDuplicateWebhookError } = require("../services/vercelCrypto");
 const { configured, getTeams, getProjects, getProject, getDeployments, deploymentUrl } = require("../services/vercelService");
+const {
+  MarketplaceCallbackError,
+  parseMarketplaceCallback,
+  exchangeMarketplaceCode,
+  assertTokenTeamMatches,
+  saveMarketplaceInstallation,
+} = require("../services/vercelMarketplaceService");
 const logger = require("../utils/logger");
 
 const router = express.Router();
@@ -76,6 +83,20 @@ router.get("/integrations/vercel/connect", async (req, res, next) => {
 router.get("/integrations/vercel/callback", async (req, res, next) => {
   try {
     if (!configured()) return unavailable(res);
+    const marketplace = parseMarketplaceCallback(req.query);
+    if (marketplace) {
+      // Marketplace callbacks intentionally have no OAuth state. Vercel issues
+      // the short-lived code only after a Marketplace installation; state/PKCE
+      // remains mandatory for the separate dashboard-initiated OAuth flow below.
+      const token = await exchangeMarketplaceCode({ code: marketplace.code });
+      const teamId = assertTokenTeamMatches(marketplace.teamId, token.team_id);
+      await saveMarketplaceInstallation(supabase, {
+        configurationId: marketplace.configurationId,
+        teamId,
+        accessToken: token.access_token,
+      });
+      return res.redirect(303, marketplace.next.toString());
+    }
     const state = typeof req.query.state === "string" ? req.query.state : "";
     const code = typeof req.query.code === "string" ? req.query.code : "";
     const providerError = typeof req.query.error === "string" ? req.query.error : "";
@@ -107,7 +128,9 @@ router.get("/integrations/vercel/callback", async (req, res, next) => {
     const token = await tokenResponse.json().catch(() => ({}));
     if (!tokenResponse.ok || !token.access_token) return res.status(400).json({ success: false, code: "OAUTH_TOKEN_EXCHANGE_FAILED", message: "Vercel did not authorize this connection." });
     
-const userResponse = await fetch("https://api.vercel.com/v2/user", {
+const userResponse = await fetch(
+  "https://api.vercel.com/login/oauth/userinfo",
+  {
   headers: {
     Authorization: `Bearer ${token.access_token}`,
     Accept: "application/json"
@@ -133,15 +156,25 @@ if (!userResponse.ok) {
 
     const { error } = await supabase.from("vercel_connections").upsert({
       owner_id: oauthState.owner_id,
-      vercel_user_id: userPayload.user?.id || userPayload.id || null,
-      vercel_username: userPayload.user?.username || userPayload.username || null,
+      vercel_user_id:
+        userPayload.sub || userPayload.user?.id || userPayload.id || null,
+      vercel_username:
+  userPayload.preferred_username ||
+  userPayload.user?.username ||
+  userPayload.username ||
+  null,
       access_token_encrypted: encryptToken(token.access_token),
       token_expires_at: token.expires_in ? new Date(Date.now() + token.expires_in * 1000).toISOString() : null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "owner_id" });
     if (error) throw error;
     return res.type("html").send(`<!doctype html><title>Vercel connected</title><body style="font-family:system-ui;display:grid;place-items:center;min-height:90vh;color:#172033"><main style="text-align:center"><h1>Vercel connected</h1><p>You can close this window and return to SiteWatch.</p></main><script>if(window.opener){window.opener.postMessage({type:'sitewatch:vercel-connected'},'*');window.close()}</script></body>`);
-  } catch (error) { next(error); }
+  } catch (error) {
+    if (error instanceof MarketplaceCallbackError) {
+      return res.status(error.status).json({ success: false, code: error.code, message: error.message });
+    }
+    next(error);
+  }
 });
 
 router.get("/integrations/vercel/status", async (req, res, next) => {

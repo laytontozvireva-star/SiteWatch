@@ -1,16 +1,17 @@
+
 const { createClient } = require("@supabase/supabase-js");
 const config = require("../config");
 const logger = require("../utils/logger");
 
 if (!config.supabase.url || !config.supabase.serviceRoleKey) {
-  logger.error(
-    "Supabase configuration is missing. Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set."
+  throw new Error(
+    "Supabase configuration is missing. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
   );
 }
 
 const supabase = createClient(
-  config.supabase.url || "https://placeholder.supabase.co",
-  config.supabase.serviceRoleKey || "placeholder_key",
+  config.supabase.url,
+  config.supabase.serviceRoleKey,
   {
     auth: {
       persistSession: false,
@@ -25,9 +26,20 @@ const supabase = createClient(
 async function checkDatabaseConnection() {
   try {
     const { error } = await supabase.from("projects").select("id").limit(1);
-    return { ok: !error, error: error ? error.message : null };
+
+    return {
+      ok: !error,
+      error: error ? error.message : null,
+    };
   } catch (err) {
-    return { ok: false, error: err.message };
+    logger.error("Supabase database connection check failed.", {
+      message: err.message,
+    });
+
+    return {
+      ok: false,
+      error: err.message,
+    };
   }
 }
 

@@ -12,6 +12,18 @@
    `VERCEL_TOKEN_ENCRYPTION_KEY` and keep it stable; rotating it requires
    reconnecting existing Vercel accounts.
 
+## Marketplace installation flow (Stage 1)
+
+Run `VERCEL_MARKETPLACE_INSTALLATIONS_MIGRATION.sql` before enabling the Vercel
+Marketplace Redirect URL. Marketplace callbacks include `source=marketplace`, a
+configuration ID, and no SiteWatch user or OAuth state. SiteWatch stores the
+installation token encrypted against that configuration ID and redirects only to
+the validated Vercel `next` URL. It does not expose the token or call `/v2/user`.
+
+Marketplace installations are intentionally unclaimed in Stage 1. A later,
+authenticated SiteWatch configuration flow must associate an installation with a
+SiteWatch user/project; do not infer ownership from a callback query string.
+
 ## Frontend flow
 
 All `/api/integrations/vercel/*` endpoints except the provider callback require
